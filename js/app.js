@@ -28,6 +28,7 @@ const App = (() => {
     const getScale = () => Prefs.get("scaleType");
     const getColor = () => Prefs.get("colorType");
     const getDirection = () => Prefs.get("direction") || "right";
+    const getTimeFlip = ()=> Prefs.get("timeFlip") || false;
 
     function computeDisplaySize() {
         const minW = 480, minH = 240;
@@ -60,7 +61,8 @@ const App = (() => {
             sampleRate: audioCtx ? audioCtx.sampleRate : 48000,
             scale: getScale(),
             timeColumns,
-            direction: getDirection()
+            direction: getDirection(),
+            timeFlip: getTimeFlip()
         });
     }
 

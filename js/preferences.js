@@ -8,6 +8,7 @@ const Prefs = (() => {
         fftSize: 4096,
         smoothing: 0.8,
         autoFit: true,
+        timeFlip: false, // Whether or not to flip the time axis labels, so 0s is on the left
         direction: "right", // Data entering from right (scrolls left) or left (scrolls right)
         showTooltip: true,  // Show Hz and exact Note on hover
         showHoverLine: true, // Show horizontal hover tracking line

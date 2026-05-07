@@ -5,7 +5,7 @@ const Axes = (() => {
     const COLUMNS_PER_SECOND = 60; // Approx assuming requestAnimationFrame ~60Hz.
 
     function draw(ctx, canvasW, canvasH, opts) {
-        const { sampleRate, scale, timeColumns, direction } = opts;
+        const { sampleRate, scale, timeColumns, direction, timeFlip } = opts;
         ctx.clearRect(0, 0, canvasW, canvasH);
 
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
@@ -37,7 +37,7 @@ const Axes = (() => {
         for (let i = 0; i <= tTicks; i++) {
             const frac = i / tTicks;
             const x = frac * displayW;
-            const s = direction === "right" ? (1 - frac) * seconds : frac * seconds;
+            const s = direction === "right" ? (timeFlip?frac:1-frac) * seconds : (timeFlip?1-frac:frac) * seconds;
             let drawX = x + FREQ_AXIS_W;
             if (i === 0) { ctx.textAlign = "left"; drawX += 4; }
             else if (i === tTicks) { ctx.textAlign = "right"; drawX -= 4; }

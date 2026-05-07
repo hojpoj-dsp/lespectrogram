@@ -91,6 +91,14 @@ function wireSettingsPanel(onChange) {
         });
     }
 
+    const timeFlipEl = document.getElementById("opt_timeFlip");
+    if (timeFlipEl) {
+        timeFlipEl.addEventListener('change', () => {
+            Prefs.set("timeFlip", timeFlipEl.checked);
+            onChange("timeFlip", timeFlipEl.checked);
+        });
+    }
+
     document.querySelectorAll('input[name="opt_direction"]').forEach(el => {
         el.addEventListener('change', () => {
             if (el.checked) {

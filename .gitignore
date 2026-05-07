@@ -1,1 +1,4 @@
 .idea/
+.vscode/
+package.json
+project.code-workspace

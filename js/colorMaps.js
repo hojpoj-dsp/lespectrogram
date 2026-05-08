@@ -32,6 +32,19 @@ const COLOR_MAPS = {
 const COLOR_NAMES = {
     JET: "Jet", GRAYSCALE: "Grayscale", HEAT: "Heat",
     MAGMA: "Magma", PLASMA: "Plasma", CIVIDIS: "Cividis (Colorblind)",
-    VIRIDIS: "Viridis", INFERNO: "Inferno"
+    VIRIDIS: "Viridis", INFERNO: "Inferno", CUSTOM: "Custom"
 };
+
+function getCustomColorMap(c1, c2, c3, c4) {
+    const parse = hex => {
+        if (!hex || hex.length !== 7) return [0,0,0];
+        return [parseInt(hex.slice(1,3), 16), parseInt(hex.slice(3,5), 16), parseInt(hex.slice(5,7), 16)];
+    }
+    return buildGradientMap([
+        [0, ...parse(c1)],
+        [0.33, ...parse(c2)],
+        [0.66, ...parse(c3)],
+        [1, ...parse(c4)]
+    ]);
+}
 

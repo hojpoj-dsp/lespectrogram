@@ -18,6 +18,7 @@
 		<script src="js/filePlayer.js?ver=6"></script>
 		<script src="js/mic.js?ver=5"></script>
 		<script src="js/ui.js?ver=5"></script>
+		<script src="js/sync.js"></script>
 		<script src="js/app.js?ver=6"></script>
 	    <title>LeSpectogram</title>
 	</head>
@@ -69,6 +70,8 @@
 					<li><hr class="dropdown-divider"></li>
 					<li><a class="dropdown-item" href="#" data-color="HEAT">Heat</a></li>
 					<li><a class="dropdown-item" href="#" data-color="GRAYSCALE">Grayscale</a></li>
+					<li><hr class="dropdown-divider"></li>
+					<li><a class="dropdown-item" href="#" data-color="CUSTOM">Custom ...</a></li>
 				</ul>
 			</div>
 
@@ -79,72 +82,144 @@
 				<ul id="fftSizeMenu" class="dropdown-menu dropdown-menu-dark"></ul>
 			</div>
 
+			<div class="dropdown me-3">
+				<button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+					Rendering: <strong id="renderModeLabel">Smooth (Frame)</strong>
+				</button>
+				<ul class="dropdown-menu dropdown-menu-dark">
+					<li><a class="dropdown-item" href="#" data-rendermode="frame">Smooth (Frame-based)</a></li>
+					<li><a class="dropdown-item" href="#" data-rendermode="strict">Strict (Catch-up)</a></li>
+				</ul>
+			</div>
+
 			<div class="dropdown">
 				<button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
 					Settings
 				</button>
-				<div class="dropdown-menu dropdown-menu-dark p-3 settings-menu">
-					<h6 class="dropdown-header px-0">Smoothing</h6>
-					<div class="d-flex align-items-center mb-2">
-						<input type="range" class="form-range flex-grow-1 me-2" id="smoothingRange" min="0" max="0.95" step="0.05" />
-						<span id="smoothingVal" class="text-light small" style="min-width: 2.5em; text-align: right;">0.80</span>
-					</div>
+				<div class="dropdown-menu dropdown-menu-dark p-3 settings-menu" style="min-width: 550px;">
+					<div class="row">
+						<!-- Left Column -->
+						<div class="col-6">
+							<h6 class="dropdown-header px-0">Smoothing</h6>
+							<div class="d-flex align-items-center mb-2">
+								<input type="range" class="form-range flex-grow-1 me-2" id="smoothingRange" min="0" max="0.95" step="0.05" />
+								<span id="smoothingVal" class="text-light small" style="min-width: 2.5em; text-align: right;">0.80</span>
+							</div>
 
-					<h6 class="dropdown-header px-0">Frequency Range (Hz)</h6>
-					<div class="d-flex align-items-center mb-2">
-						<input type="number" class="form-control form-control-sm me-2 bg-dark text-light border-secondary" id="opt_minFreq" placeholder="Min" />
-						<span class="text-light mx-1">-</span>
-						<input type="number" class="form-control form-control-sm ms-2 bg-dark text-light border-secondary" id="opt_maxFreq" placeholder="Max" />
-					</div>
+							<h6 class="dropdown-header px-0 d-flex justify-content-between">
+								<span>Frequency Range (Hz)</span>
+								<a href="#" id="resetFreqBtn" class="text-warning text-decoration-none small" style="font-size: 0.85em;">Reset</a>
+							</h6>
+							<div class="d-flex align-items-center mb-2">
+								<input type="number" class="form-control form-control-sm me-2 bg-dark text-light border-secondary" id="opt_minFreq" placeholder="Min" />
+								<span class="text-light mx-1">-</span>
+								<input type="number" class="form-control form-control-sm ms-2 bg-dark text-light border-secondary" id="opt_maxFreq" placeholder="Max" />
+							</div>
 
-					<hr class="dropdown-divider" />
-					<h6 class="dropdown-header px-0">Display</h6>
-					<div class="form-check form-switch text-start">
-						<input class="form-check-input" type="checkbox" id="opt_autoFit">
-						<label class="form-check-label" for="opt_autoFit">Auto-fit to window</label>
-					</div>
-					<div class="form-check form-switch text-start">
-						<input class="form-check-input" type="checkbox" id="opt_showTooltip">
-						<label class="form-check-label" for="opt_showTooltip">Show Note Tooltip</label>
-					</div>
-					<div class="form-check form-switch text-start">
-						<input class="form-check-input" type="checkbox" id="opt_showHoverLine">
-						<label class="form-check-label" for="opt_showHoverLine">Show Hover Line</label>
-					</div>
-					<div class="form-check form-switch text-start">
-						<input class="form-check-input" type="checkbox" id="opt_timeFlip">
-						<label class="form-check-label" for="opt_timeFlip">Flip X axis labels (requires reload)</label>
-					</div>
+							<h6 class="dropdown-header px-0 d-flex justify-content-between">
+								<span>Amplitude Range (dB)</span>
+								<a href="#" id="resetDbBtn" class="text-warning text-decoration-none small" style="font-size: 0.85em;">Reset</a>
+							</h6>
+							<div class="d-flex align-items-center mb-2">
+								<input type="number" class="form-control form-control-sm me-2 bg-dark text-light border-secondary" id="opt_minDb" placeholder="Min dB" />
+								<span class="text-light mx-1">-</span>
+								<input type="number" class="form-control form-control-sm ms-2 bg-dark text-light border-secondary" id="opt_maxDb" placeholder="Max dB" />
+							</div>
 
-					<div class="mt-2 text-start">
-						<span class="text-light small d-block mb-1">Scroll Direction</span>
-						<div class="form-check form-check-inline">
-							<input class="form-check-input" type="radio" name="opt_direction" id="dir_right" value="right">
-							<label class="form-check-label small" for="dir_right">Left. (New Data Right)</label>
+							<h6 class="dropdown-header px-0">File Playback Speed</h6>
+							<div class="d-flex align-items-center mb-3">
+								<select id="opt_playbackSpeed" class="form-select form-select-sm bg-dark text-light border-secondary">
+									<option value="0.25">0.25x</option>
+									<option value="0.5">0.5x</option>
+									<option value="0.75">0.75x</option>
+									<option value="1">1.0x</option>
+									<option value="1.25">1.25x</option>
+									<option value="1.5">1.5x</option>
+									<option value="2">2.0x</option>
+								</select>
+							</div>
+
+							<h6 class="dropdown-header px-0">Custom Color Map</h6>
+							<div class="d-flex align-items-center mb-3">
+								<input type="color" class="form-control form-control-sm form-control-color bg-dark border-secondary p-0 me-1" id="opt_customColor1" value="#000000" title="Color 1 (Low)">
+								<input type="color" class="form-control form-control-sm form-control-color bg-dark border-secondary p-0 me-1" id="opt_customColor2" value="#330055" title="Color 2">
+								<input type="color" class="form-control form-control-sm form-control-color bg-dark border-secondary p-0 me-1" id="opt_customColor3" value="#bb0055" title="Color 3">
+								<input type="color" class="form-control form-control-sm form-control-color bg-dark border-secondary p-0" id="opt_customColor4" value="#ffffee" title="Color 4 (High)">
+							</div>
+
+							<h6 class="dropdown-header px-0">Piano Roll Grid</h6>
+							<div class="d-flex align-items-center mb-1">
+								<span class="text-light small w-50">Color:</span>
+								<input type="color" class="form-control form-control-sm form-control-color bg-dark border-secondary p-0" id="opt_noteGridColor" value="#ffffff" title="Grid Color">
+							</div>
+							<div class="d-flex align-items-center mb-1">
+								<span class="text-light small w-50">Line Opacity:</span>
+								<input type="range" class="form-range flex-grow-1" id="opt_noteGridOpacity" min="0" max="1" step="0.05" />
+							</div>
+							<div class="d-flex align-items-center">
+								<span class="text-light small w-50">"C" Note Opacity:</span>
+								<input type="range" class="form-range flex-grow-1" id="opt_noteGridCOpacity" min="0" max="1" step="0.05" />
+							</div>
 						</div>
-						<div class="form-check form-check-inline">
-							<input class="form-check-input" type="radio" name="opt_direction" id="dir_left" value="left">
-							<label class="form-check-label small" for="dir_left">Right. (New Data Left)</label>
+
+						<!-- Right Column -->
+						<div class="col-6 border-start border-secondary">
+							<h6 class="dropdown-header px-0 mt-0">Display</h6>
+							<div class="form-check form-switch text-start">
+								<input class="form-check-input" type="checkbox" id="opt_autoFit">
+								<label class="form-check-label" for="opt_autoFit">Auto-fit to window</label>
+							</div>
+							<div class="form-check form-switch text-start">
+								<input class="form-check-input" type="checkbox" id="opt_showTooltip">
+								<label class="form-check-label" for="opt_showTooltip">Show Note Tooltip</label>
+							</div>
+							<div class="form-check form-switch text-start">
+								<input class="form-check-input" type="checkbox" id="opt_showHoverLine">
+								<label class="form-check-label" for="opt_showHoverLine">Show Hover Line</label>
+							</div>
+							<div class="form-check form-switch text-start">
+								<input class="form-check-input" type="checkbox" id="opt_showNoteGrid">
+								<label class="form-check-label" for="opt_showNoteGrid">Show Note Grid (Piano Roll)</label>
+							</div>
+							<div class="form-check form-switch text-start mb-2">
+								<input class="form-check-input" type="checkbox" id="opt_timeFlip">
+								<label class="form-check-label" for="opt_timeFlip">Flip X axis labels</label>
+							</div>
+
+							<div class="mt-2 text-start mb-3">
+								<span class="text-light small d-block mb-1">Scroll Direction</span>
+								<div class="form-check form-check-inline">
+									<input class="form-check-input" type="radio" name="opt_direction" id="dir_right" value="right">
+									<label class="form-check-label small" for="dir_right">Left. (New Data Right)</label>
+								</div>
+								<div class="form-check form-check-inline">
+									<input class="form-check-input" type="radio" name="opt_direction" id="dir_left" value="left">
+									<label class="form-check-label small" for="dir_left">Right. (New Data Left)</label>
+								</div>
+							</div>
+
+							<h6 class="dropdown-header px-0">Advanced & Audio</h6>
+							<div class="form-check form-switch text-start">
+								<input class="form-check-input" type="checkbox" id="opt_echoCancellation">
+								<label class="form-check-label" for="opt_echoCancellation">Echo Cancellation</label>
+							</div>
+							<div class="form-check form-switch text-start">
+								<input class="form-check-input" type="checkbox" id="opt_noiseSuppression">
+								<label class="form-check-label" for="opt_noiseSuppression">Noise Suppression</label>
+							</div>
+							<div class="form-check form-switch text-start">
+								<input class="form-check-input" type="checkbox" id="opt_autoGainControl">
+								<label class="form-check-label" for="opt_autoGainControl">Auto Gain Control</label>
+							</div>
+							<div class="form-check form-switch text-start">
+								<input class="form-check-input" type="checkbox" id="opt_enableSync">
+								<label class="form-check-label" for="opt_enableSync">Cross-Tab Sync</label>
+							</div>
+
+							<hr class="dropdown-divider mt-4" />
+							<a href="#" id="prefsResetBtn" class="dropdown-item text-warning text-start px-0 fw-bold">Reset All to Defaults</a>
 						</div>
 					</div>
-
-					<hr class="dropdown-divider" />
-					<h6 class="dropdown-header px-0">Microphone Processing</h6>
-					<div class="form-check form-switch text-start">
-						<input class="form-check-input" type="checkbox" id="opt_echoCancellation">
-						<label class="form-check-label" for="opt_echoCancellation">Echo Cancellation</label>
-					</div>
-					<div class="form-check form-switch text-start">
-						<input class="form-check-input" type="checkbox" id="opt_noiseSuppression">
-						<label class="form-check-label" for="opt_noiseSuppression">Noise Suppression</label>
-					</div>
-					<div class="form-check form-switch text-start">
-						<input class="form-check-input" type="checkbox" id="opt_autoGainControl">
-						<label class="form-check-label" for="opt_autoGainControl">Auto Gain Control</label>
-					</div>
-
-					<hr class="dropdown-divider" />
-					<a href="#" id="prefsResetBtn" class="dropdown-item text-warning text-start px-0">Reset to defaults</a>
 				</div>
 			</div>
 		</nav>

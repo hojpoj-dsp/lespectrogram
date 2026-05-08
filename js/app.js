@@ -34,6 +34,12 @@ const App = (() => {
     const getDirection = () => Prefs.get("direction") || "right";
     const getTimeFlip = ()=> Prefs.get("timeFlip") || false;
 
+    function postSync(type, payload = {}) {
+        if (typeof Sync !== "undefined") {
+            Sync.post(type, payload);
+        }
+    }
+
     function computeDisplaySize() {
         const minW = 480, minH = 240;
         const maxW = 4096, maxH = 2048;
@@ -67,7 +73,11 @@ const App = (() => {
             timeColumns,
             direction: getDirection(),
             timeFlip: getTimeFlip(),
-            columnsPerSecond: DATA_RATE
+            columnsPerSecond: Prefs.get('renderMode') === 'frame' ? actualFPS : DATA_RATE,
+            showNoteGrid: Prefs.get('showNoteGrid'),
+            noteGridColor: Prefs.get('noteGridColor'),
+            noteGridOpacity: Prefs.get('noteGridOpacity'),
+            noteGridCOpacity: Prefs.get('noteGridCOpacity')
         });
     }
 
@@ -77,7 +87,9 @@ const App = (() => {
         root.innerHTML = "";
 
         const opts = { onscreenParentId: "root" };
-        const cmap = COLOR_MAPS[getColor()];
+        const cmap = getColor() === "CUSTOM"
+            ? getCustomColorMap(Prefs.get("customColor1"), Prefs.get("customColor2"), Prefs.get("customColor3"), Prefs.get("customColor4"))
+            : COLOR_MAPS[getColor()];
         if (cmap) opts.colorMap = cmap;
         wf = new Waterfall(wfBufAry, pxPerLine, timeColumns, getDirection(), opts);
         currentColor = getColor();
@@ -139,6 +151,8 @@ const App = (() => {
         if (!analyser) return;
         analyser.fftSize = Prefs.get("fftSize");
         analyser.smoothingTimeConstant = Prefs.get("smoothing");
+        analyser.minDecibels = Prefs.get("minDecibels");
+        analyser.maxDecibels = Prefs.get("maxDecibels");
         buildAudioBuffers();
         rebuildScale();
         createWaterfall();
@@ -174,30 +188,65 @@ const App = (() => {
         if (wrap.style.display === "none") wrap.style.display = "";
     }
 
+    let framesThisSecond = 0;
+    let actualFPS = 60;
+    let fpsUpdateTs = 0;
+
     function draw(timestamp) {
         if (appState !== "running") return;
 
         if (!timestamp) timestamp = performance.now();
-        if (!nextDataTickTs) nextDataTickTs = timestamp;
+
+        if (Prefs.get('renderMode') === 'frame') {
+            if (!fpsUpdateTs) {
+                fpsUpdateTs = timestamp;
+            } else if (timestamp - fpsUpdateTs >= 1000) {
+                let newFPS = (framesThisSecond * 1000) / (timestamp - fpsUpdateTs);
+                fpsUpdateTs = timestamp;
+                framesThisSecond = 0;
+
+                let rawFPS = newFPS > 10 ? newFPS : 60;
+                const commonRates = [60, 72, 75, 90, 120, 144, 165, 240, 360];
+                let boundedFPS = commonRates.reduce((prev, curr) =>
+                    Math.abs(curr - rawFPS) < Math.abs(prev - rawFPS) ? curr : prev
+                );
+
+                if (actualFPS !== boundedFPS) {
+                    actualFPS = boundedFPS;
+                    drawAxesOverlay();
+                }
+            }
+            framesThisSecond++;
+        } else {
+            if (!nextDataTickTs) nextDataTickTs = timestamp;
+        }
 
         if (getScale() !== currentScale) rebuildScale();
-        if (getColor() !== currentColor) createWaterfall();
+        // createWaterfall is now handled by Prefs event
 
         let pumped = false;
-        let catchupLines = 0;
 
-        while (timestamp >= nextDataTickTs && catchupLines < 2) {
+        if (Prefs.get('renderMode') === 'frame') {
             analyser.getByteFrequencyData(frqBuf);
             remapBins(frqBuf, mappedBuf, scaleMap);
             if (wf && wf.newLine) wf.newLine();
-
-            nextDataTickTs += DATA_FRAME_MS;
             pumped = true;
-            catchupLines++;
-        }
+        } else {
+            let catchupLines = 0;
 
-        if (timestamp >= nextDataTickTs) {
-            nextDataTickTs = timestamp;
+            while (timestamp >= nextDataTickTs && catchupLines < 2) {
+                analyser.getByteFrequencyData(frqBuf);
+                remapBins(frqBuf, mappedBuf, scaleMap);
+                if (wf && wf.newLine) wf.newLine();
+
+                nextDataTickTs += DATA_FRAME_MS;
+                pumped = true;
+                catchupLines++;
+            }
+
+            if (timestamp >= nextDataTickTs) {
+                nextDataTickTs = timestamp;
+            }
         }
 
         if (pumped) {
@@ -227,6 +276,8 @@ const App = (() => {
         }
         analyser.fftSize = Prefs.get("fftSize");
         analyser.smoothingTimeConstant = Prefs.get("smoothing");
+        analyser.minDecibels = Prefs.get("minDecibels");
+        analyser.maxDecibels = Prefs.get("maxDecibels");
     }
 
     function startVisualization() {
@@ -241,6 +292,7 @@ const App = (() => {
     }
 
     async function start() {
+        postSync('play');
         if (appState === "paused") {
             await audioCtx.resume();
             const audioEl = FilePlayer.getElement();
@@ -291,6 +343,7 @@ const App = (() => {
 
     async function pause() {
         if (appState !== "running") return;
+        postSync('pause');
         appState = "paused";
         if (animFrameId) cancelAnimationFrame(animFrameId);
         if (wf) wf.stop();
@@ -310,6 +363,7 @@ const App = (() => {
     }
 
     function stop() {
+        postSync('stop');
         appState = "stopped";
         if (animFrameId) cancelAnimationFrame(animFrameId);
         if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
@@ -342,6 +396,9 @@ const App = (() => {
             onEnded:  pause
         });
 
+        const audioEl = FilePlayer.getElement();
+        if (audioEl) audioEl.playbackRate = Prefs.get("playbackSpeed") || 1.0;
+
         start();
     }
 
@@ -349,10 +406,19 @@ const App = (() => {
         if (appState === "stopped" || !analyser) return;
         if (key === "smoothing") {
             analyser.smoothingTimeConstant = value;
-        } else if (key === "fftSize" || key === "autoFit" || key === "direction" || key === "minFrequency" || key === "maxFrequency") {
+        } else if (key === "fftSize" || key === "autoFit" || key === "direction" || key === "minFrequency" || key === "maxFrequency" || key === "minDecibels" || key === "maxDecibels") {
             rebuildPipeline();
+        } else if (key === "colorType" || key.startsWith("customColor")) {
+            createWaterfall();
+        } else if (key === "showNoteGrid" || key === "noteGridColor" || key === "noteGridOpacity" || key === "noteGridCOpacity") {
+            drawAxesOverlay();
+        } else if (key === "playbackSpeed") {
+            const audioEl = FilePlayer.getElement();
+            if (audioEl) audioEl.playbackRate = value;
         } else if (key === "echoCancellation" || key === "noiseSuppression" || key === "autoGainControl") {
             showRestartHint(true);
+        } else if (key === "enableSync" && typeof Sync !== "undefined") {
+            Sync.reconnect();
         }
     }
 
@@ -393,6 +459,7 @@ const App = (() => {
 
         wireDropdown("data-scale", "scaleLabel", SCALE_NAMES, v => Prefs.set("scaleType", v));
         wireDropdown("data-color", "colorLabel", COLOR_NAMES, v => Prefs.set("colorType", v));
+        wireDropdown("data-rendermode", "renderModeLabel", { "frame": "Smooth (Frame-based)", "strict": "Strict (Catch-up)" }, v => Prefs.set("renderMode", v));
         wireSettingsPanel(onPrefChanged);
         applyPrefsToUI();
 
@@ -402,6 +469,20 @@ const App = (() => {
         FilePlayer.setBarVisible(false);
         updateButtons();
         checkMicPermission();
+
+        if (typeof Sync !== "undefined") {
+            Sync.init({
+                onPlay: () => { if (appState !== 'running') start(); },
+                onPause: () => { if (appState === 'running') pause(); },
+                onStop: () => { if (appState !== 'stopped') stop(); },
+                onSeek: (time) => {
+                    const audioEl = FilePlayer.getElement();
+                    if (audioEl && Math.abs(audioEl.currentTime - time) > 0.5) {
+                        audioEl.currentTime = time;
+                    }
+                }
+            });
+        }
     }
 
     return { init };

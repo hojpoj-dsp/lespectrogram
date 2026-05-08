@@ -4,11 +4,11 @@ const SCALE_NAMES = { MEL: "Mel", LINEAR: "Linear", OCTAVE: "Octave", LOG: "Log"
 function hzToMel(hz) { return 2595 * Math.log10(1 + hz / 700); }
 function melToHz(mel) { return 700 * (Math.pow(10, mel / 2595) - 1); }
 
-function scaleToHz(frac, nyquist, scale) {
+function scaleToHz(frac, halfSampleRate, scale) {
     const userMin = typeof Prefs !== "undefined" ? parseFloat(Prefs.get("minFrequency") || 20) : 20;
-    const userMax = typeof Prefs !== "undefined" ? parseFloat(Prefs.get("maxFrequency") || nyquist) : nyquist;
+    const userMax = typeof Prefs !== "undefined" ? parseFloat(Prefs.get("maxFrequency") || halfSampleRate) : halfSampleRate;
     const minHz = Math.max(1, userMin);
-    const maxHz = Math.min(nyquist, userMax);
+    const maxHz = Math.min(halfSampleRate, userMax);
 
     switch (scale) {
         case "MEL":
@@ -25,10 +25,10 @@ function scaleToHz(frac, nyquist, scale) {
 
 function buildScaleMap(numBins, numPx, sampleRate, scale) {
     const map = new Float32Array(numPx);
-    const nyquist = sampleRate / 2;
+    const halfSampleRate = sampleRate / 2;
     for (let px = 0; px < numPx; px++) {
-        const hz = scaleToHz(px / (numPx - 1), nyquist, scale);
-        map[px] = (hz / nyquist) * (numBins - 1);
+        const hz = scaleToHz(px / (numPx - 1), halfSampleRate, scale);
+        map[px] = (hz / halfSampleRate) * (numBins - 1);
     }
     return map;
 }
@@ -53,5 +53,31 @@ function hzToNoteString(hz) {
     const octave = Math.floor(midiNum / 12) - 1;
     const noteName = noteNames[midiNum % 12];
     return `${noteName}${octave} (${hz.toFixed(1)} Hz)`;
+}
+
+function midiToHz(midi) {
+    return 440 * Math.pow(2, (midi - 69) / 12);
+}
+
+function hzToScaleFrac(hz, halfSampleRate, scale) {
+    const userMin = typeof Prefs !== "undefined" ? parseFloat(Prefs.get("minFrequency") || 20) : 20;
+    const userMax = typeof Prefs !== "undefined" ? parseFloat(Prefs.get("maxFrequency") || halfSampleRate) : halfSampleRate;
+    const minHz = Math.max(1, userMin);
+    const maxHz = Math.min(halfSampleRate, userMax);
+
+    if (hz <= minHz) return 0;
+    if (hz >= maxHz) return 1;
+
+    switch (scale) {
+        case "MEL":
+            return (hzToMel(hz) - hzToMel(minHz)) / (hzToMel(maxHz) - hzToMel(minHz));
+        case "LOG":
+            return (Math.log10(hz) - Math.log10(minHz)) / (Math.log10(maxHz) - Math.log10(minHz));
+        case "OCTAVE":
+            return (Math.log2(hz) - Math.log2(minHz)) / (Math.log2(maxHz) - Math.log2(minHz));
+        case "LINEAR":
+        default:
+            return (hz - minHz) / (maxHz - minHz);
+    }
 }
 

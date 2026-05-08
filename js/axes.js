@@ -3,13 +3,54 @@ const Axes = (() => {
     const FREQ_AXIS_W = 44;
     const TIME_AXIS_H = 28;
 
+    function hexToRgba(hex, alpha) {
+        let r = 255, g = 255, b = 255;
+        if (hex && hex.length === 7) {
+            r = parseInt(hex.slice(1, 3), 16);
+            g = parseInt(hex.slice(3, 5), 16);
+            b = parseInt(hex.slice(5, 7), 16);
+        }
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
     function draw(ctx, canvasW, canvasH, opts) {
-        const { sampleRate, scale, timeColumns, direction, timeFlip, columnsPerSecond = 60 } = opts;
+        const { sampleRate, scale, timeColumns, direction, timeFlip, columnsPerSecond = 60, showNoteGrid, noteGridColor = "#ffffff", noteGridOpacity = 0.1, noteGridCOpacity = 0.4 } = opts;
         ctx.clearRect(0, 0, canvasW, canvasH);
 
+        const halfSampleRate = sampleRate / 2;
+        const displayH = canvasH - TIME_AXIS_H;
+
+        if (showNoteGrid && typeof hzToScaleFrac !== "undefined" && typeof midiToHz !== "undefined") {
+            ctx.lineWidth = 1;
+            for (let midi = 12; midi <= 127; midi++) {
+                const hz = midiToHz(midi);
+                const frac = hzToScaleFrac(hz, halfSampleRate, scale);
+                // frac goes from 0 to 1 (bottom to top freq)
+                if (frac > 0 && frac < 1) {
+                    const y = (1 - frac) * displayH;
+
+                    const isC = (midi % 12) === 0;
+                    ctx.strokeStyle = isC ? hexToRgba(noteGridColor, noteGridCOpacity) : hexToRgba(noteGridColor, noteGridOpacity);
+
+                    ctx.beginPath();
+                    ctx.moveTo(FREQ_AXIS_W, y);
+                    ctx.lineTo(canvasW, y);
+                    ctx.stroke();
+
+                    if (isC) {
+                        ctx.fillStyle = hexToRgba(noteGridColor, Math.min(1.0, noteGridCOpacity + 0.1));
+                        ctx.textAlign = "right";
+                        ctx.textBaseline = "middle";
+                        ctx.font = "10px sans-serif";
+                        ctx.fillText(`C${Math.floor(midi/12)-1}`, canvasW - 4, y);
+                    }
+                }
+            }
+        }
+
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
-        ctx.fillRect(0, 0, FREQ_AXIS_W, canvasH - TIME_AXIS_H);
-        ctx.fillRect(0, canvasH - TIME_AXIS_H, canvasW, TIME_AXIS_H);
+        ctx.fillRect(0, 0, FREQ_AXIS_W, displayH);
+        ctx.fillRect(0, displayH, canvasW, TIME_AXIS_H);
 
         ctx.fillStyle = "#eee";
         ctx.font = "12px sans-serif";
@@ -18,12 +59,10 @@ const Axes = (() => {
         // Frequency axis
         ctx.textAlign = "right";
         const fTicks = 8;
-        const nyquist = sampleRate / 2;
-        const displayH = canvasH - TIME_AXIS_H;
         for (let i = 0; i < fTicks; i++) {
             const frac = i / fTicks;
             const y = frac * displayH;
-            const hz = scaleToHz(1 - frac, nyquist, scale);
+            const hz = scaleToHz(1 - frac, halfSampleRate, scale);
             const drawY = i === 0 ? y + 8 : y;
             ctx.fillText(formatHz(Math.round(hz)), FREQ_AXIS_W - 4, drawY);
         }

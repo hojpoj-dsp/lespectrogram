@@ -12,11 +12,24 @@ const Prefs = (() => {
         direction: "right", // Data entering from right (scrolls left) or left (scrolls right)
         showTooltip: true,  // Show Hz and exact Note on hover
         showHoverLine: true, // Show horizontal hover tracking line
+        showNoteGrid: false, // Show faint horizontal lines at musical notes
+        noteGridColor: "#ffffff",
+        noteGridOpacity: 0.1,
+        noteGridCOpacity: 0.4,
         minFrequency: 20,
         maxFrequency: 20000,
+        minDecibels: -100,
+        maxDecibels: -30,
+        playbackSpeed: 1.0,
         echoCancellation: false,
         noiseSuppression: false,
-        autoGainControl: false
+        autoGainControl: false,
+        enableSync: false,
+        renderMode: "frame", // "frame" or "delta"
+        customColor1: "#000000",
+        customColor2: "#330055",
+        customColor3: "#bb0055",
+        customColor4: "#ffffee"
     };
 
     let state = { ...DEFAULTS };

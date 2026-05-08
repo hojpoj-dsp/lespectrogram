@@ -5,17 +5,21 @@ function hzToMel(hz) { return 2595 * Math.log10(1 + hz / 700); }
 function melToHz(mel) { return 700 * (Math.pow(10, mel / 2595) - 1); }
 
 function scaleToHz(frac, nyquist, scale) {
-    const minHz = 20;
+    const userMin = typeof Prefs !== "undefined" ? parseFloat(Prefs.get("minFrequency") || 20) : 20;
+    const userMax = typeof Prefs !== "undefined" ? parseFloat(Prefs.get("maxFrequency") || nyquist) : nyquist;
+    const minHz = Math.max(1, userMin);
+    const maxHz = Math.min(nyquist, userMax);
+
     switch (scale) {
         case "MEL":
-            return melToHz(hzToMel(minHz) + frac * (hzToMel(nyquist) - hzToMel(minHz)));
+            return melToHz(hzToMel(minHz) + frac * (hzToMel(maxHz) - hzToMel(minHz)));
         case "LOG":
-            return Math.pow(10, Math.log10(minHz) + frac * (Math.log10(nyquist) - Math.log10(minHz)));
+            return Math.pow(10, Math.log10(minHz) + frac * (Math.log10(maxHz) - Math.log10(minHz)));
         case "OCTAVE":
-            return Math.pow(2, Math.log2(minHz) + frac * (Math.log2(nyquist) - Math.log2(minHz)));
+            return Math.pow(2, Math.log2(minHz) + frac * (Math.log2(maxHz) - Math.log2(minHz)));
         case "LINEAR":
         default:
-            return frac * nyquist;
+            return minHz + frac * (maxHz - minHz);
     }
 }
 

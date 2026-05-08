@@ -25,6 +25,10 @@ const App = (() => {
 
     let lastNoteUpdateTs = 0;
 
+    const DATA_RATE = 60; // Fixed number of columns plotted per second
+    const DATA_FRAME_MS = 1000 / DATA_RATE;
+    let nextDataTickTs = 0;
+
     const getScale = () => Prefs.get("scaleType");
     const getColor = () => Prefs.get("colorType");
     const getDirection = () => Prefs.get("direction") || "right";
@@ -62,7 +66,8 @@ const App = (() => {
             scale: getScale(),
             timeColumns,
             direction: getDirection(),
-            timeFlip: getTimeFlip()
+            timeFlip: getTimeFlip(),
+            columnsPerSecond: DATA_RATE
         });
     }
 
@@ -84,7 +89,6 @@ const App = (() => {
             overlayCtx = overlayCanvas.getContext("2d");
         }
         drawAxesOverlay();
-        wf.start();
     }
 
     function rebuildScale() {
@@ -115,7 +119,7 @@ const App = (() => {
 
             if (Prefs.get("showTooltip")) {
                 const frac = 1 - (y / Math.max(1, pxPerLine - 1));
-                const hz = scaleToHz(frac, audioCtx.sampleRate / 2, getScale());
+                const hz = typeof scaleToHz !== "undefined" ? scaleToHz(frac, audioCtx.sampleRate / 2, getScale()) : 0;
                 tooltip.textContent = hzToNoteString(hz);
                 tooltip.style.left = `${e.clientX + 15}px`;
                 tooltip.style.top = `${e.clientY + 15}px`;
@@ -170,13 +174,35 @@ const App = (() => {
         if (wrap.style.display === "none") wrap.style.display = "";
     }
 
-    function draw() {
+    function draw(timestamp) {
         if (appState !== "running") return;
+
+        if (!timestamp) timestamp = performance.now();
+        if (!nextDataTickTs) nextDataTickTs = timestamp;
+
         if (getScale() !== currentScale) rebuildScale();
         if (getColor() !== currentColor) createWaterfall();
-        analyser.getByteFrequencyData(frqBuf);
-        remapBins(frqBuf, mappedBuf, scaleMap);
-        updateLastNote();
+
+        let pumped = false;
+        // Process audio in strict real-time increments regardless of screen FPS
+        while (timestamp >= nextDataTickTs) {
+            analyser.getByteFrequencyData(frqBuf);
+            remapBins(frqBuf, mappedBuf, scaleMap);
+            if (wf && wf.newLine) wf.newLine();
+
+            nextDataTickTs += DATA_FRAME_MS;
+            pumped = true;
+
+            // Prevention cap in case the user's browser tab was asleep for hours
+            if (timestamp - nextDataTickTs > 1000) {
+                nextDataTickTs = timestamp;
+                break;
+            }
+        }
+
+        if (pumped) {
+            updateLastNote();
+        }
 
         const audioEl = FilePlayer.getElement();
         if (audioEl && (audioEl.paused || audioEl.ended)) {
@@ -208,6 +234,7 @@ const App = (() => {
         rebuildScale();
         createWaterfall();
         appState = "running";
+        nextDataTickTs = 0;
         showRestartHint(false);
         updateButtons();
         draw();
@@ -219,7 +246,7 @@ const App = (() => {
             const audioEl = FilePlayer.getElement();
             if (audioEl) audioEl.play();
             appState = "running";
-            if (wf) wf.start();
+            nextDataTickTs = 0;
             updateButtons();
             draw();
             return;
@@ -322,7 +349,7 @@ const App = (() => {
         if (appState === "stopped" || !analyser) return;
         if (key === "smoothing") {
             analyser.smoothingTimeConstant = value;
-        } else if (key === "fftSize" || key === "autoFit" || key === "direction") {
+        } else if (key === "fftSize" || key === "autoFit" || key === "direction" || key === "minFrequency" || key === "maxFrequency") {
             rebuildPipeline();
         } else if (key === "echoCancellation" || key === "noiseSuppression" || key === "autoGainControl") {
             showRestartHint(true);

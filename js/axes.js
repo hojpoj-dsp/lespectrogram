@@ -2,10 +2,9 @@
 const Axes = (() => {
     const FREQ_AXIS_W = 44;
     const TIME_AXIS_H = 28;
-    const COLUMNS_PER_SECOND = 60; // Approx assuming requestAnimationFrame ~60Hz.
 
     function draw(ctx, canvasW, canvasH, opts) {
-        const { sampleRate, scale, timeColumns, direction, timeFlip } = opts;
+        const { sampleRate, scale, timeColumns, direction, timeFlip, columnsPerSecond = 60 } = opts;
         ctx.clearRect(0, 0, canvasW, canvasH);
 
         ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
@@ -31,7 +30,7 @@ const Axes = (() => {
 
         // Time axis
         ctx.textBaseline = "bottom";
-        const seconds = Math.max(1, timeColumns / COLUMNS_PER_SECOND);
+        const seconds = Math.max(1, timeColumns / columnsPerSecond);
         const tTicks = Math.min(12, Math.max(4, Math.round(seconds)));
         const displayW = canvasW - FREQ_AXIS_W;
         for (let i = 0; i <= tTicks; i++) {
@@ -59,5 +58,5 @@ const Axes = (() => {
         return hz >= 1000 ? `${(hz / 1000).toFixed(1)}k` : `${hz}`;
     }
 
-    return { FREQ_AXIS_W, TIME_AXIS_H, COLUMNS_PER_SECOND, draw, drawHoverLine, formatHz };
+    return { FREQ_AXIS_W, TIME_AXIS_H, draw, drawHoverLine, formatHz };
 })();

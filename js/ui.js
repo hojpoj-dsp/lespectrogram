@@ -55,6 +55,24 @@ function wireSettingsPanel(onChange) {
         });
     }
 
+    // Min/Max Frequency
+    const minFreqBtn = document.getElementById("opt_minFreq");
+    const maxFreqBtn = document.getElementById("opt_maxFreq");
+    if (minFreqBtn) {
+        minFreqBtn.addEventListener('change', () => {
+            const val = parseFloat(minFreqBtn.value) || 20;
+            Prefs.set("minFrequency", val);
+            onChange("minFrequency", val);
+        });
+    }
+    if (maxFreqBtn) {
+        maxFreqBtn.addEventListener('change', () => {
+            const val = parseFloat(maxFreqBtn.value) || 20000;
+            Prefs.set("maxFrequency", val);
+            onChange("maxFrequency", val);
+        });
+    }
+
     // Audio constraint toggles
     const toggles = ["echoCancellation", "noiseSuppression", "autoGainControl"];
     toggles.forEach(name => {
@@ -132,6 +150,12 @@ function applyPrefsToUI() {
     const smoothVal = document.getElementById("smoothingVal");
     if (smooth) { smooth.value = p.smoothing; }
     if (smoothVal) { smoothVal.textContent = Number(p.smoothing).toFixed(2); }
+
+    const minFreqEl = document.getElementById("opt_minFreq");
+    if (minFreqEl) minFreqEl.value = p.minFrequency || 20;
+
+    const maxFreqEl = document.getElementById("opt_maxFreq");
+    if (maxFreqEl) maxFreqEl.value = p.maxFrequency || 20000;
 
     ["echoCancellation", "noiseSuppression", "autoGainControl"].forEach(name => {
         const el = document.getElementById(`opt_${name}`);

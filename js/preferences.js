@@ -12,6 +12,8 @@ const Prefs = (() => {
         direction: "right", // Data entering from right (scrolls left) or left (scrolls right)
         showTooltip: true,  // Show Hz and exact Note on hover
         showHoverLine: true, // Show horizontal hover tracking line
+        minFrequency: 20,
+        maxFrequency: 20000,
         echoCancellation: false,
         noiseSuppression: false,
         autoGainControl: false

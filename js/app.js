@@ -184,20 +184,20 @@ const App = (() => {
         if (getColor() !== currentColor) createWaterfall();
 
         let pumped = false;
-        // Process audio in strict real-time increments regardless of screen FPS
-        while (timestamp >= nextDataTickTs) {
+        let catchupLines = 0;
+
+        while (timestamp >= nextDataTickTs && catchupLines < 2) {
             analyser.getByteFrequencyData(frqBuf);
             remapBins(frqBuf, mappedBuf, scaleMap);
             if (wf && wf.newLine) wf.newLine();
 
             nextDataTickTs += DATA_FRAME_MS;
             pumped = true;
+            catchupLines++;
+        }
 
-            // Prevention cap in case the user's browser tab was asleep for hours
-            if (timestamp - nextDataTickTs > 1000) {
-                nextDataTickTs = timestamp;
-                break;
-            }
+        if (timestamp >= nextDataTickTs) {
+            nextDataTickTs = timestamp;
         }
 
         if (pumped) {

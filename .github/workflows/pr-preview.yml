@@ -1,7 +1,7 @@
 name: PR Preview
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize]
 
 jobs:
@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+      issues: write
     steps:
       - name: Create or update preview comment
         uses: marocchino/sticky-pull-request-comment@v2

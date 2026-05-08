@@ -386,7 +386,7 @@ const App = (() => {
             closeAudioBtn.addEventListener('click', () => {
                 stop();
                 FilePlayer.unload();
-                fileSourceNode = null;
+                if (fileSourceNode) fileSourceNode.disconnect();
                 checkMicPermission();
             });
         }

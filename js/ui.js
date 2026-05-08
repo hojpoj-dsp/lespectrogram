@@ -73,6 +73,42 @@ function wireSettingsPanel(onChange) {
         });
     }
 
+    const minDbBtn = document.getElementById("opt_minDb");
+    const maxDbBtn = document.getElementById("opt_maxDb");
+    if (minDbBtn) {
+        minDbBtn.addEventListener('change', () => {
+            const val = parseFloat(minDbBtn.value) || -100;
+            Prefs.set("minDecibels", val);
+            onChange("minDecibels", val);
+        });
+    }
+    if (maxDbBtn) {
+        maxDbBtn.addEventListener('change', () => {
+            const val = parseFloat(maxDbBtn.value) || -30;
+            Prefs.set("maxDecibels", val);
+            onChange("maxDecibels", val);
+        });
+    }
+
+    const playbackSpeedSel = document.getElementById("opt_playbackSpeed");
+    if (playbackSpeedSel) {
+        playbackSpeedSel.addEventListener('change', () => {
+            const val = parseFloat(playbackSpeedSel.value) || 1.0;
+            Prefs.set("playbackSpeed", val);
+            onChange("playbackSpeed", val);
+        });
+    }
+
+    [1, 2, 3, 4].forEach(i => {
+        const cEl = document.getElementById(`opt_customColor${i}`);
+        if (cEl) {
+            cEl.addEventListener('change', () => {
+                Prefs.set(`customColor${i}`, cEl.value);
+                onChange(`customColor${i}`, cEl.value);
+            });
+        }
+    });
+
     // Audio constraint toggles
     const toggles = ["echoCancellation", "noiseSuppression", "autoGainControl"];
     toggles.forEach(name => {
@@ -83,6 +119,58 @@ function wireSettingsPanel(onChange) {
             onChange(name, el.checked);
         });
     });
+
+    const resetFreqBtn = document.getElementById("resetFreqBtn");
+    if (resetFreqBtn) {
+        resetFreqBtn.addEventListener("click", e => {
+            e.preventDefault();
+            e.stopPropagation();
+            Prefs.set("minFrequency", 20);
+            Prefs.set("maxFrequency", 20000);
+            if (minFreqBtn) minFreqBtn.value = 20;
+            if (maxFreqBtn) maxFreqBtn.value = 20000;
+            onChange("minFrequency", 20);
+        });
+    }
+
+    const resetDbBtn = document.getElementById("resetDbBtn");
+    if (resetDbBtn) {
+        resetDbBtn.addEventListener("click", e => {
+            e.preventDefault();
+            e.stopPropagation();
+            Prefs.set("minDecibels", -100);
+            Prefs.set("maxDecibels", -30);
+            if (minDbBtn) minDbBtn.value = -100;
+            if (maxDbBtn) maxDbBtn.value = -30;
+            onChange("minDecibels", -100);
+        });
+    }
+
+    const noteGridColorEl = document.getElementById("opt_noteGridColor");
+    if (noteGridColorEl) {
+        noteGridColorEl.addEventListener("change", () => {
+            Prefs.set("noteGridColor", noteGridColorEl.value);
+            onChange("noteGridColor", noteGridColorEl.value);
+        });
+    }
+
+    const noteGridOpacityEl = document.getElementById("opt_noteGridOpacity");
+    if (noteGridOpacityEl) {
+        noteGridOpacityEl.addEventListener("input", () => {
+            const val = parseFloat(noteGridOpacityEl.value) || 0.1;
+            Prefs.set("noteGridOpacity", val);
+            onChange("noteGridOpacity", val);
+        });
+    }
+
+    const noteGridCOpacityEl = document.getElementById("opt_noteGridCOpacity");
+    if (noteGridCOpacityEl) {
+        noteGridCOpacityEl.addEventListener("input", () => {
+            const val = parseFloat(noteGridCOpacityEl.value) || 0.4;
+            Prefs.set("noteGridCOpacity", val);
+            onChange("noteGridCOpacity", val);
+        });
+    }
 
     // Auto-fit toggle
     const autoFitEl = document.getElementById("opt_autoFit");
@@ -109,11 +197,27 @@ function wireSettingsPanel(onChange) {
         });
     }
 
+    const noteGridEl = document.getElementById("opt_showNoteGrid");
+    if (noteGridEl) {
+        noteGridEl.addEventListener('change', () => {
+            Prefs.set("showNoteGrid", noteGridEl.checked);
+            onChange("showNoteGrid", noteGridEl.checked);
+        });
+    }
+
     const timeFlipEl = document.getElementById("opt_timeFlip");
     if (timeFlipEl) {
         timeFlipEl.addEventListener('change', () => {
             Prefs.set("timeFlip", timeFlipEl.checked);
             onChange("timeFlip", timeFlipEl.checked);
+        });
+    }
+
+    const syncEl = document.getElementById("opt_enableSync");
+    if (syncEl) {
+        syncEl.addEventListener('change', () => {
+            Prefs.set("enableSync", syncEl.checked);
+            onChange("enableSync", syncEl.checked);
         });
     }
 
@@ -157,6 +261,29 @@ function applyPrefsToUI() {
     const maxFreqEl = document.getElementById("opt_maxFreq");
     if (maxFreqEl) maxFreqEl.value = p.maxFrequency || 20000;
 
+    const minDbEl = document.getElementById("opt_minDb");
+    if (minDbEl) minDbEl.value = p.minDecibels || -100;
+
+    const maxDbEl = document.getElementById("opt_maxDb");
+    if (maxDbEl) maxDbEl.value = p.maxDecibels || -30;
+
+    [1, 2, 3, 4].forEach(i => {
+        const cEl = document.getElementById(`opt_customColor${i}`);
+        if (cEl) cEl.value = p[`customColor${i}`] || "#000000";
+    });
+
+    const playbackSpeedSel = document.getElementById("opt_playbackSpeed");
+    if (playbackSpeedSel) playbackSpeedSel.value = p.playbackSpeed || 1.0;
+
+    const noteGridColorEl = document.getElementById("opt_noteGridColor");
+    if (noteGridColorEl) noteGridColorEl.value = p.noteGridColor || "#ffffff";
+
+    const noteGridOpacityEl = document.getElementById("opt_noteGridOpacity");
+    if (noteGridOpacityEl) noteGridOpacityEl.value = p.noteGridOpacity !== undefined ? p.noteGridOpacity : 0.1;
+
+    const noteGridCOpacityEl = document.getElementById("opt_noteGridCOpacity");
+    if (noteGridCOpacityEl) noteGridCOpacityEl.value = p.noteGridCOpacity !== undefined ? p.noteGridCOpacity : 0.4;
+
     ["echoCancellation", "noiseSuppression", "autoGainControl"].forEach(name => {
         const el = document.getElementById(`opt_${name}`);
         if (el) el.checked = !!p[name];
@@ -171,7 +298,19 @@ function applyPrefsToUI() {
     const hoverLineEl = document.getElementById("opt_showHoverLine");
     if (hoverLineEl) hoverLineEl.checked = !!p.showHoverLine;
 
+    const noteGridEl = document.getElementById("opt_showNoteGrid");
+    if (noteGridEl) noteGridEl.checked = !!p.showNoteGrid;
+
+    const timeFlipEl = document.getElementById("opt_timeFlip");
+    if (timeFlipEl) timeFlipEl.checked = !!p.timeFlip;
+
     const dirEl = document.querySelector(`input[name="opt_direction"][value="${p.direction}"]`);
     if (dirEl) dirEl.checked = true;
+
+    const syncEl = document.getElementById("opt_enableSync");
+    if (syncEl) syncEl.checked = !!p.enableSync;
+
+    const modeNames = { "frame": "Smooth (Frame-based)", "strict": "Strict (Catch-up)" };
+    setDropdownLabel("renderModeLabel", modeNames, p.renderMode);
 }
 

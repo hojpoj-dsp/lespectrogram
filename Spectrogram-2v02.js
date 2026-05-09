@@ -54,6 +54,7 @@ class Spectrogram {
     const clearBuf = new ArrayBuffer(pxPerLine * lines * 4);  // fills with 0s ie. rgba 0,0,0,0 = transparent
     const clearBuf8 = new Uint8ClampedArray(clearBuf);
     let offScreenCtx;   // offscreen canvas drawing context
+    let line;
     let clearImgData;
     let lineRate = 30;  // requested line rate for dynamic waterfalls
     let interval = 0;   // msec
@@ -255,23 +256,27 @@ class Spectrogram {
     {
       let tmpImgData, ipBuf8;
 
-        if (sgMode == "WF")
+      if (sgMode == "WF")
       {
         if (rhc)
         {
           // shift the current display right 1 line, oldest line drops off
-          tmpImgData = offScreenCtx.getImageData(0, 0, lines-1, pxPerLine);
-          offScreenCtx.putImageData(tmpImgData, 1, 0);
+          offScreenCtx.drawImage(
+            this.offScreenCvs,
+            0, 0, lines - 1, pxPerLine, // source
+            1, 0, lines - 1, pxPerLine  // destination
+          );
         }
         else
         {
-          // shift the current display left 1 line, oldest line drops off
-          tmpImgData = offScreenCtx.getImageData(1, 0, lines-1, pxPerLine);
-          offScreenCtx.putImageData(tmpImgData, 0, 0);
+          offScreenCtx.drawImage(
+            this.offScreenCvs,
+            1, 0, lines - 1, pxPerLine, // source
+            0, 0, lines - 1, pxPerLine  // destination
+          );
         }
       }
       // refresh the page image (it was just shifted)
-      const pageImgData = offScreenCtx.getImageData(0, 0, lines, pxPerLine);     
       if (!(ipObj.buffer instanceof Uint8Array))
       {
         ipBuf8 = Uint8ClampedArray.from(ipObj.buffer); // clamp input values to 0..255 range
@@ -285,13 +290,15 @@ class Spectrogram {
       {
         sigVal = ipBuf8[ipIdx+startOfs] || 0;    // if input line too short add zeros
         rgba = colMap[sigVal];  // array of rgba values
-        opIdx = 4*((pxPerLine-ipIdx-1)*lines+nextLine);
+        opIdx = 4*((pxPerLine-ipIdx-1));
         // byte reverse so number aa bb gg rr
-        pageImgData.data[opIdx] = rgba[0];   // red
-        pageImgData.data[opIdx+1] = rgba[1]; // green
-        pageImgData.data[opIdx+2] = rgba[2]; // blue
-        pageImgData.data[opIdx+3] = rgba[3]; // alpha
+        line.data[opIdx] = rgba[0];   // red
+        line.data[opIdx+1] = rgba[1]; // green
+        line.data[opIdx+2] = rgba[2]; // blue
+        line.data[opIdx+3] = rgba[3]; // alpha
       }
+      offScreenCtx.putImageData(line, nextLine, 0);
+
       if (sgMode === "RS")
       {
         incrLine();
@@ -303,21 +310,21 @@ class Spectrogram {
             let opIdx;
             if (rhc)
             {
-              opIdx = 4*(j*lines+nextLine);
+              opIdx = 4*(j);
             }
             else
             {
-              opIdx = 4*((pxPerLine-j-1)*lines+nextLine);
+              opIdx = 4*((pxPerLine-j-1));
             }
             // byte reverse so number aa bb gg rr
-            pageImgData.data[opIdx] = 255;   // red
-            pageImgData.data[opIdx+1] = 255; // green
-            pageImgData.data[opIdx+2] = 255; // blue
-            pageImgData.data[opIdx+3] = 255; // alpha
+            line.data[opIdx] = 255;   // red
+            line.data[opIdx+1] = 255; // green
+            line.data[opIdx+2] = 255; // blue
+            line.data[opIdx+3] = 255; // alpha
           }
+          offScreenCtx.putImageData(line, nextLine, 0);
         }
       } 
-      offScreenCtx.putImageData(pageImgData, 0, 0);
     };
 
     const createOffScreenCanvas = ()=>
@@ -336,6 +343,8 @@ class Spectrogram {
         clearImgData = new ImageData(clearBuf8, lines, pxPerLine);
       }
       offScreenCtx = cvs.getContext("2d");
+      line = offScreenCtx.createImageData(1, pxPerLine);
+
 
       return cvs;
     };

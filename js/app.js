@@ -485,7 +485,26 @@ const App = (() => {
         }
     }
 
-    return { init };
+    return {
+        init,
+        // Host interface for transport-app.js. Read-only getters keep the
+        // references live; helpers expose the few private functions the
+        // transport feature needs to drive into App's audio graph.
+        getAudioCtx: () => audioCtx,
+        getAnalyser: () => analyser,
+        getAppState: () => appState,
+        audioConstraints,
+        ensureAudioCtx,
+        startVisualization,
+        disconnectMediaSources: () => {
+            if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
+            if (micSourceNode) { micSourceNode.disconnect(); micSourceNode = null; }
+            if (fileSourceNode) fileSourceNode.disconnect();
+            const fileEl = FilePlayer.getElement();
+            if (fileEl) fileEl.pause();
+            try { analyser.disconnect(); } catch (_) { }
+        }
+    };
 })();
 
 window.addEventListener('DOMContentLoaded', App.init);

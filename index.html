@@ -1,5 +1,5 @@
 <html lang="en">
-    <head>
+	<head>
 		<meta charset="UTF-8">
 		<!-- Stylesheet -->
 		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.8/dist/darkly/bootstrap.min.css" crossorigin="anonymous">
@@ -7,7 +7,7 @@
 		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 
 		<!-- Spectrogram library -->
-        <script src="Spectrogram-2v02.js"></script>
+		<script src="Spectrogram-2v02.js"></script>
 
 		<!-- App modules (load order matters - plain scripts, not ES modules) -->
 		<script src="js/preferences.js?ver=5"></script>
@@ -23,287 +23,287 @@
 		<script src="js/wave-renderer.js"></script>
 		<script src="js/app.js?ver=6"></script>
 		<script src="js/transport-app.js"></script>
-	    <title>LeSpectogram</title>
+		<title>LeSpectogram</title>
 	</head>
-    <body>
+	<body>
 		<div id="plotWrap">
 			<div id="plotRight" style="position:relative; display:inline-block;">
 				<canvas id="axesCanvas" style="position:absolute; top:0; left:0; pointer-events:none; z-index: 10;"></canvas>
 				<div id="root" style="margin-left: 44px; margin-bottom: 28px; position: relative;"></div>
 			</div>
 		</div>
-	<br />
-	<div class="bg-dark text-center container">
-		<div id="spectroTooltip" style="display:none; position:fixed; pointer-events:none; background:rgba(0,0,0,0.8); color:#fff; border:1px solid #555; border-radius:4px; padding:4px 8px; font-size:12px; z-index:100; white-space:nowrap;"></div>
+		<br />
+		<div class="bg-dark text-center container">
+			<div id="spectroTooltip" style="display:none; position:fixed; pointer-events:none; background:rgba(0,0,0,0.8); color:#fff; border:1px solid #555; border-radius:4px; padding:4px 8px; font-size:12px; z-index:100; white-space:nowrap;"></div>
 
-		<nav id="toolbar" class="bg-secondary rounded px-3 py-2 mb-3">
-			<div class="btn-group me-3">
-				<button id="startBtn" class="btn btn-sm btn-success">Start</button>
-				<button id="pauseBtn" class="btn btn-sm btn-warning" disabled>Pause</button>
-				<button id="stopBtn" class="btn btn-sm btn-danger" disabled>Stop</button>
-				<button id="resetBtn" class="btn btn-sm btn-outline-light">Reset</button>
-				<button id="openFileBtn" class="btn btn-sm btn-info">Load Audio</button>
-				<input type="file" id="audioFileInput" accept="audio/*" style="display:none" />
-			</div>
+			<nav id="toolbar" class="bg-secondary rounded px-3 py-2 mb-3">
+				<div class="btn-group me-3">
+					<button id="startBtn" class="btn btn-sm btn-success">Start</button>
+					<button id="pauseBtn" class="btn btn-sm btn-warning" disabled>Pause</button>
+					<button id="stopBtn" class="btn btn-sm btn-danger" disabled>Stop</button>
+					<button id="resetBtn" class="btn btn-sm btn-outline-light">Reset</button>
+					<button id="openFileBtn" class="btn btn-sm btn-info">Load Audio</button>
+					<input type="file" id="audioFileInput" accept="audio/*" style="display:none" />
+				</div>
 
-			<div class="dropdown me-3">
-				<button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-					Scale: <strong id="scaleLabel">Mel</strong>
-				</button>
-				<ul class="dropdown-menu dropdown-menu-dark">
-					<li><a class="dropdown-item" href="#" data-scale="MEL">Mel (Default)</a></li>
-					<li><a class="dropdown-item" href="#" data-scale="LINEAR">Linear</a></li>
-					<li><a class="dropdown-item" href="#" data-scale="OCTAVE">Octave</a></li>
-					<li><a class="dropdown-item" href="#" data-scale="LOG">Log</a></li>
-				</ul>
-			</div>
+				<div class="dropdown me-3">
+					<button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+						Scale: <strong id="scaleLabel">Mel</strong>
+					</button>
+					<ul class="dropdown-menu dropdown-menu-dark">
+						<li><a class="dropdown-item" href="#" data-scale="MEL">Mel (Default)</a></li>
+						<li><a class="dropdown-item" href="#" data-scale="LINEAR">Linear</a></li>
+						<li><a class="dropdown-item" href="#" data-scale="OCTAVE">Octave</a></li>
+						<li><a class="dropdown-item" href="#" data-scale="LOG">Log</a></li>
+					</ul>
+				</div>
 
-			<div class="dropdown me-3">
-				<button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-					Colors: <strong id="colorLabel">Jet</strong>
-				</button>
-				<ul class="dropdown-menu dropdown-menu-dark">
-					<li><a class="dropdown-item" href="#" data-color="JET">Jet (Default)</a></li>
-					<li><a class="dropdown-item" href="#" data-color="MAGMA">Magma</a></li>
-					<li><a class="dropdown-item" href="#" data-color="INFERNO">Inferno</a></li>
-					<li><a class="dropdown-item" href="#" data-color="PLASMA">Plasma</a></li>
-					<li><a class="dropdown-item" href="#" data-color="VIRIDIS">Viridis</a></li>
-					<li><hr class="dropdown-divider"></li>
-					<li><a class="dropdown-item" href="#" data-color="CIVIDIS">Cividis (Colorblind-safe)</a></li>
-					<li><hr class="dropdown-divider"></li>
-					<li><a class="dropdown-item" href="#" data-color="HEAT">Heat</a></li>
-					<li><a class="dropdown-item" href="#" data-color="GRAYSCALE">Grayscale</a></li>
-					<li><hr class="dropdown-divider"></li>
-					<li><a class="dropdown-item" href="#" data-color="CUSTOM">Custom ...</a></li>
-				</ul>
-			</div>
+				<div class="dropdown me-3">
+					<button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+						Colors: <strong id="colorLabel">Jet</strong>
+					</button>
+					<ul class="dropdown-menu dropdown-menu-dark">
+						<li><a class="dropdown-item" href="#" data-color="JET">Jet (Default)</a></li>
+						<li><a class="dropdown-item" href="#" data-color="MAGMA">Magma</a></li>
+						<li><a class="dropdown-item" href="#" data-color="INFERNO">Inferno</a></li>
+						<li><a class="dropdown-item" href="#" data-color="PLASMA">Plasma</a></li>
+						<li><a class="dropdown-item" href="#" data-color="VIRIDIS">Viridis</a></li>
+						<li><hr class="dropdown-divider"></li>
+						<li><a class="dropdown-item" href="#" data-color="CIVIDIS">Cividis (Colorblind-safe)</a></li>
+						<li><hr class="dropdown-divider"></li>
+						<li><a class="dropdown-item" href="#" data-color="HEAT">Heat</a></li>
+						<li><a class="dropdown-item" href="#" data-color="GRAYSCALE">Grayscale</a></li>
+						<li><hr class="dropdown-divider"></li>
+						<li><a class="dropdown-item" href="#" data-color="CUSTOM">Custom ...</a></li>
+					</ul>
+				</div>
 
-			<div class="dropdown me-3">
-				<button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-					Resolution: <strong id="fftSizeLabel">2048</strong>
-				</button>
-				<ul id="fftSizeMenu" class="dropdown-menu dropdown-menu-dark"></ul>
-			</div>
+				<div class="dropdown me-3">
+					<button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+						Resolution: <strong id="fftSizeLabel">2048</strong>
+					</button>
+					<ul id="fftSizeMenu" class="dropdown-menu dropdown-menu-dark"></ul>
+				</div>
 
-			<div class="dropdown me-3">
-				<button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
-					Rendering: <strong id="renderModeLabel">Smooth (Frame)</strong>
-				</button>
-				<ul class="dropdown-menu dropdown-menu-dark">
-					<li><a class="dropdown-item" href="#" data-rendermode="frame">Smooth (Frame-based)</a></li>
-					<li><a class="dropdown-item" href="#" data-rendermode="strict">Strict (Catch-up)</a></li>
-				</ul>
-			</div>
+				<div class="dropdown me-3">
+					<button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+						Rendering: <strong id="renderModeLabel">Smooth (Frame)</strong>
+					</button>
+					<ul class="dropdown-menu dropdown-menu-dark">
+						<li><a class="dropdown-item" href="#" data-rendermode="frame">Smooth (Frame-based)</a></li>
+						<li><a class="dropdown-item" href="#" data-rendermode="strict">Strict (Catch-up)</a></li>
+					</ul>
+				</div>
 
-			<div class="dropdown">
-				<button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
-					Settings
-				</button>
-				<div class="dropdown-menu dropdown-menu-dark p-3 settings-menu" style="min-width: 550px;">
-					<div class="row">
-						<!-- Left Column -->
-						<div class="col-6">
-							<h6 class="dropdown-header px-0">Smoothing</h6>
-							<div class="d-flex align-items-center mb-2">
-								<input type="range" class="form-range flex-grow-1 me-2" id="smoothingRange" min="0" max="0.95" step="0.05" />
-								<span id="smoothingVal" class="text-light small" style="min-width: 2.5em; text-align: right;">0.80</span>
-							</div>
-
-							<h6 class="dropdown-header px-0 d-flex justify-content-between">
-								<span>Frequency Range (Hz)</span>
-								<a href="#" id="resetFreqBtn" class="text-warning text-decoration-none small" style="font-size: 0.85em;">Reset</a>
-							</h6>
-							<div class="d-flex align-items-center mb-2">
-								<input type="number" class="form-control form-control-sm me-2 bg-dark text-light border-secondary" id="opt_minFreq" placeholder="Min" />
-								<span class="text-light mx-1">-</span>
-								<input type="number" class="form-control form-control-sm ms-2 bg-dark text-light border-secondary" id="opt_maxFreq" placeholder="Max" />
-							</div>
-
-							<h6 class="dropdown-header px-0 d-flex justify-content-between">
-								<span>Amplitude Range (dB)</span>
-								<a href="#" id="resetDbBtn" class="text-warning text-decoration-none small" style="font-size: 0.85em;">Reset</a>
-							</h6>
-							<div class="d-flex align-items-center mb-2">
-								<input type="number" class="form-control form-control-sm me-2 bg-dark text-light border-secondary" id="opt_minDb" placeholder="Min dB" />
-								<span class="text-light mx-1">-</span>
-								<input type="number" class="form-control form-control-sm ms-2 bg-dark text-light border-secondary" id="opt_maxDb" placeholder="Max dB" />
-							</div>
-
-							<h6 class="dropdown-header px-0">File Playback Speed</h6>
-							<div class="d-flex align-items-center mb-3">
-								<select id="opt_playbackSpeed" class="form-select form-select-sm bg-dark text-light border-secondary">
-									<option value="0.25">0.25x</option>
-									<option value="0.5">0.5x</option>
-									<option value="0.75">0.75x</option>
-									<option value="1">1.0x</option>
-									<option value="1.25">1.25x</option>
-									<option value="1.5">1.5x</option>
-									<option value="2">2.0x</option>
-								</select>
-							</div>
-
-							<h6 class="dropdown-header px-0">Custom Color Map</h6>
-							<div class="d-flex align-items-center mb-3">
-								<input type="color" class="form-control form-control-sm form-control-color bg-dark border-secondary p-0 me-1" id="opt_customColor1" value="#000000" title="Color 1 (Low)">
-								<input type="color" class="form-control form-control-sm form-control-color bg-dark border-secondary p-0 me-1" id="opt_customColor2" value="#330055" title="Color 2">
-								<input type="color" class="form-control form-control-sm form-control-color bg-dark border-secondary p-0 me-1" id="opt_customColor3" value="#bb0055" title="Color 3">
-								<input type="color" class="form-control form-control-sm form-control-color bg-dark border-secondary p-0" id="opt_customColor4" value="#ffffee" title="Color 4 (High)">
-							</div>
-
-							<h6 class="dropdown-header px-0">Piano Roll Grid</h6>
-							<div class="d-flex align-items-center mb-1">
-								<span class="text-light small w-50">Color:</span>
-								<input type="color" class="form-control form-control-sm form-control-color bg-dark border-secondary p-0" id="opt_noteGridColor" value="#ffffff" title="Grid Color">
-							</div>
-							<div class="d-flex align-items-center mb-1">
-								<span class="text-light small w-50">Line Opacity:</span>
-								<input type="range" class="form-range flex-grow-1" id="opt_noteGridOpacity" min="0" max="1" step="0.05" />
-							</div>
-							<div class="d-flex align-items-center">
-								<span class="text-light small w-50">"C" Note Opacity:</span>
-								<input type="range" class="form-range flex-grow-1" id="opt_noteGridCOpacity" min="0" max="1" step="0.05" />
-							</div>
-						</div>
-
-						<!-- Right Column -->
-						<div class="col-6 border-start border-secondary">
-							<h6 class="dropdown-header px-0 mt-0">Display</h6>
-							<div class="form-check form-switch text-start">
-								<input class="form-check-input" type="checkbox" id="opt_autoFit">
-								<label class="form-check-label" for="opt_autoFit">Auto-fit to window</label>
-							</div>
-							<div class="form-check form-switch text-start">
-								<input class="form-check-input" type="checkbox" id="opt_showTooltip">
-								<label class="form-check-label" for="opt_showTooltip">Show Note Tooltip</label>
-							</div>
-							<div class="form-check form-switch text-start">
-								<input class="form-check-input" type="checkbox" id="opt_showHoverLine">
-								<label class="form-check-label" for="opt_showHoverLine">Show Hover Line</label>
-							</div>
-							<div class="form-check form-switch text-start">
-								<input class="form-check-input" type="checkbox" id="opt_showNoteGrid">
-								<label class="form-check-label" for="opt_showNoteGrid">Show Note Grid (Piano Roll)</label>
-							</div>
-							<div class="form-check form-switch text-start mb-2">
-								<input class="form-check-input" type="checkbox" id="opt_timeFlip">
-								<label class="form-check-label" for="opt_timeFlip">Flip X axis labels</label>
-							</div>
-
-							<h6 class="dropdown-header px-0">Waveform Magnification</h6>
-							<div class="d-flex align-items-center mb-2">
-								<input type="range" class="form-range flex-grow-1 me-2" id="opt_waveformGain" min="0.25" max="16" step="0.25" />
-								<span id="waveformGainVal" class="text-light small" style="min-width: 3em; text-align: right;">1.00×</span>
-							</div>
-
-							<div class="mt-2 text-start mb-3">
-								<span class="text-light small d-block mb-1">Scroll Direction</span>
-								<div class="form-check form-check-inline">
-									<input class="form-check-input" type="radio" name="opt_direction" id="dir_right" value="right">
-									<label class="form-check-label small" for="dir_right">Right. (New Data Left)</label>
+				<div class="dropdown">
+					<button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+						Settings
+					</button>
+					<div class="dropdown-menu dropdown-menu-dark p-3 settings-menu" style="min-width: 550px;">
+						<div class="row">
+							<!-- Left Column -->
+							<div class="col-6">
+								<h6 class="dropdown-header px-0">Smoothing</h6>
+								<div class="d-flex align-items-center mb-2">
+									<input type="range" class="form-range flex-grow-1 me-2" id="smoothingRange" min="0" max="0.95" step="0.05" />
+									<span id="smoothingVal" class="text-light small" style="min-width: 2.5em; text-align: right;">0.80</span>
 								</div>
-								<div class="form-check form-check-inline">
-									<input class="form-check-input" type="radio" name="opt_direction" id="dir_left" value="left">
-									<label class="form-check-label small" for="dir_left">Left. (New Data Right)</label>
+
+								<h6 class="dropdown-header px-0 d-flex justify-content-between">
+									<span>Frequency Range (Hz)</span>
+									<a href="#" id="resetFreqBtn" class="text-warning text-decoration-none small" style="font-size: 0.85em;">Reset</a>
+								</h6>
+								<div class="d-flex align-items-center mb-2">
+									<input type="number" class="form-control form-control-sm me-2 bg-dark text-light border-secondary" id="opt_minFreq" placeholder="Min" />
+									<span class="text-light mx-1">-</span>
+									<input type="number" class="form-control form-control-sm ms-2 bg-dark text-light border-secondary" id="opt_maxFreq" placeholder="Max" />
+								</div>
+
+								<h6 class="dropdown-header px-0 d-flex justify-content-between">
+									<span>Amplitude Range (dB)</span>
+									<a href="#" id="resetDbBtn" class="text-warning text-decoration-none small" style="font-size: 0.85em;">Reset</a>
+								</h6>
+								<div class="d-flex align-items-center mb-2">
+									<input type="number" class="form-control form-control-sm me-2 bg-dark text-light border-secondary" id="opt_minDb" placeholder="Min dB" />
+									<span class="text-light mx-1">-</span>
+									<input type="number" class="form-control form-control-sm ms-2 bg-dark text-light border-secondary" id="opt_maxDb" placeholder="Max dB" />
+								</div>
+
+								<h6 class="dropdown-header px-0">File Playback Speed</h6>
+								<div class="d-flex align-items-center mb-3">
+									<select id="opt_playbackSpeed" class="form-select form-select-sm bg-dark text-light border-secondary">
+										<option value="0.25">0.25x</option>
+										<option value="0.5">0.5x</option>
+										<option value="0.75">0.75x</option>
+										<option value="1">1.0x</option>
+										<option value="1.25">1.25x</option>
+										<option value="1.5">1.5x</option>
+										<option value="2">2.0x</option>
+									</select>
+								</div>
+
+								<h6 class="dropdown-header px-0">Custom Color Map</h6>
+								<div class="d-flex align-items-center mb-3">
+									<input type="color" class="form-control form-control-sm form-control-color bg-dark border-secondary p-0 me-1" id="opt_customColor1" value="#000000" title="Color 1 (Low)">
+									<input type="color" class="form-control form-control-sm form-control-color bg-dark border-secondary p-0 me-1" id="opt_customColor2" value="#330055" title="Color 2">
+									<input type="color" class="form-control form-control-sm form-control-color bg-dark border-secondary p-0 me-1" id="opt_customColor3" value="#bb0055" title="Color 3">
+									<input type="color" class="form-control form-control-sm form-control-color bg-dark border-secondary p-0" id="opt_customColor4" value="#ffffee" title="Color 4 (High)">
+								</div>
+
+								<h6 class="dropdown-header px-0">Piano Roll Grid</h6>
+								<div class="d-flex align-items-center mb-1">
+									<span class="text-light small w-50">Color:</span>
+									<input type="color" class="form-control form-control-sm form-control-color bg-dark border-secondary p-0" id="opt_noteGridColor" value="#ffffff" title="Grid Color">
+								</div>
+								<div class="d-flex align-items-center mb-1">
+									<span class="text-light small w-50">Line Opacity:</span>
+									<input type="range" class="form-range flex-grow-1" id="opt_noteGridOpacity" min="0" max="1" step="0.05" />
+								</div>
+								<div class="d-flex align-items-center">
+									<span class="text-light small w-50">"C" Note Opacity:</span>
+									<input type="range" class="form-range flex-grow-1" id="opt_noteGridCOpacity" min="0" max="1" step="0.05" />
 								</div>
 							</div>
 
-							<h6 class="dropdown-header px-0">Advanced & Audio</h6>
-							<div class="form-check form-switch text-start">
-								<input class="form-check-input" type="checkbox" id="opt_echoCancellation">
-								<label class="form-check-label" for="opt_echoCancellation">Echo Cancellation</label>
-							</div>
-							<div class="form-check form-switch text-start">
-								<input class="form-check-input" type="checkbox" id="opt_noiseSuppression">
-								<label class="form-check-label" for="opt_noiseSuppression">Noise Suppression</label>
-							</div>
-							<div class="form-check form-switch text-start">
-								<input class="form-check-input" type="checkbox" id="opt_autoGainControl">
-								<label class="form-check-label" for="opt_autoGainControl">Auto Gain Control</label>
-							</div>
-							<div class="form-check form-switch text-start">
-								<input class="form-check-input" type="checkbox" id="opt_enableSync">
-								<label class="form-check-label" for="opt_enableSync">Cross-Tab Sync</label>
-							</div>
-							<div class="form-check form-switch text-start">
-								<input class="form-check-input" type="checkbox" id="opt_monitorInput">
-								<label class="form-check-label" for="opt_monitorInput">Monitor mic during record</label>
-							</div>
+							<!-- Right Column -->
+							<div class="col-6 border-start border-secondary">
+								<h6 class="dropdown-header px-0 mt-0">Display</h6>
+								<div class="form-check form-switch text-start">
+									<input class="form-check-input" type="checkbox" id="opt_autoFit">
+									<label class="form-check-label" for="opt_autoFit">Auto-fit to window</label>
+								</div>
+								<div class="form-check form-switch text-start">
+									<input class="form-check-input" type="checkbox" id="opt_showTooltip">
+									<label class="form-check-label" for="opt_showTooltip">Show Note Tooltip</label>
+								</div>
+								<div class="form-check form-switch text-start">
+									<input class="form-check-input" type="checkbox" id="opt_showHoverLine">
+									<label class="form-check-label" for="opt_showHoverLine">Show Hover Line</label>
+								</div>
+								<div class="form-check form-switch text-start">
+									<input class="form-check-input" type="checkbox" id="opt_showNoteGrid">
+									<label class="form-check-label" for="opt_showNoteGrid">Show Note Grid (Piano Roll)</label>
+								</div>
+								<div class="form-check form-switch text-start mb-2">
+									<input class="form-check-input" type="checkbox" id="opt_timeFlip">
+									<label class="form-check-label" for="opt_timeFlip">Flip X axis labels</label>
+								</div>
 
-							<hr class="dropdown-divider mt-4" />
-							<a href="#" id="prefsResetBtn" class="dropdown-item text-warning text-start px-0 fw-bold">Reset All to Defaults</a>
+								<h6 class="dropdown-header px-0">Waveform Magnification</h6>
+								<div class="d-flex align-items-center mb-2">
+									<input type="range" class="form-range flex-grow-1 me-2" id="opt_waveformGain" min="0.25" max="16" step="0.25" />
+									<span id="waveformGainVal" class="text-light small" style="min-width: 3em; text-align: right;">1.00×</span>
+								</div>
+
+								<div class="mt-2 text-start mb-3">
+									<span class="text-light small d-block mb-1">Scroll Direction</span>
+									<div class="form-check form-check-inline">
+										<input class="form-check-input" type="radio" name="opt_direction" id="dir_right" value="right">
+										<label class="form-check-label small" for="dir_right">Right. (New Data Left)</label>
+									</div>
+									<div class="form-check form-check-inline">
+										<input class="form-check-input" type="radio" name="opt_direction" id="dir_left" value="left">
+										<label class="form-check-label small" for="dir_left">Left. (New Data Right)</label>
+									</div>
+								</div>
+
+								<h6 class="dropdown-header px-0">Advanced & Audio</h6>
+								<div class="form-check form-switch text-start">
+									<input class="form-check-input" type="checkbox" id="opt_echoCancellation">
+									<label class="form-check-label" for="opt_echoCancellation">Echo Cancellation</label>
+								</div>
+								<div class="form-check form-switch text-start">
+									<input class="form-check-input" type="checkbox" id="opt_noiseSuppression">
+									<label class="form-check-label" for="opt_noiseSuppression">Noise Suppression</label>
+								</div>
+								<div class="form-check form-switch text-start">
+									<input class="form-check-input" type="checkbox" id="opt_autoGainControl">
+									<label class="form-check-label" for="opt_autoGainControl">Auto Gain Control</label>
+								</div>
+								<div class="form-check form-switch text-start">
+									<input class="form-check-input" type="checkbox" id="opt_enableSync">
+									<label class="form-check-label" for="opt_enableSync">Cross-Tab Sync</label>
+								</div>
+								<div class="form-check form-switch text-start">
+									<input class="form-check-input" type="checkbox" id="opt_monitorInput">
+									<label class="form-check-label" for="opt_monitorInput">Monitor mic during record</label>
+								</div>
+
+								<hr class="dropdown-divider mt-4" />
+								<a href="#" id="prefsResetBtn" class="dropdown-item text-warning text-start px-0 fw-bold">Reset All to Defaults</a>
+							</div>
 						</div>
 					</div>
 				</div>
+			</nav>
+
+			<div class="d-flex align-items-center mb-2" style="gap: 8px;">
+				<button id="transportHelpBtn" type="button" class="text-light bg-transparent"
+					data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right"
+					data-bs-title="Transport hotkeys"
+					data-bs-content="<kbd>Space</kbd> Play / Pause toggle<br><kbd>T</kbd> Record toggle<br><kbd>Enter</kbd> Rewind to start<br><kbd>Del</kbd> / <kbd>Backspace</kbd> Delete selected region<br><br>Drag region <em>label bar</em>: move region<br>Drag <em>wave area</em>: paint range selection<br>Click <em>ruler</em>: seek (no auto-play)"
+					style="border:1px solid currentColor; border-radius:50%; width:22px; height:22px; padding:0; line-height:1; font-size:13px; font-weight:bold; flex-shrink:0;">?</button>
+				<nav id="transportBar" class="bg-secondary rounded px-3 py-2 d-flex align-items-center flex-wrap flex-grow-1" style="gap: 6px;">
+					<strong class="text-warning me-2">Transport:</strong>
+					<button id="transportLoadBtn" class="btn btn-sm btn-info">Load File</button>
+					<input type="file" id="transportFileInput" accept="audio/*" style="display:none" />
+					<button id="transportPlayBtn" class="btn btn-sm btn-success" disabled>Play</button>
+					<button id="transportRecordBtn" class="btn btn-sm btn-danger">● Rec</button>
+					<button id="transportStopBtn" class="btn btn-sm btn-outline-light" disabled>■ Stop</button>
+					<button id="transportLoopBtn" class="btn btn-sm btn-outline-info" title="Toggle loop within range selection">🔁 Loop</button>
+					<button id="transportDeleteBtn" class="btn btn-sm btn-outline-warning" disabled title="Delete selected region (Del / Backspace)">Delete</button>
+					<span id="transportTime" class="text-light small ms-2 font-monospace" style="font-variant-numeric: tabular-nums;">0:00.00 / 0:00.00</span>
+					<span id="transportStatus" class="text-light small ms-2 opacity-75">Idle</span>
+				</nav>
 			</div>
-		</nav>
 
-		<div class="d-flex align-items-center mb-2" style="gap: 8px;">
-			<button id="transportHelpBtn" type="button" class="text-light bg-transparent"
-				data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-html="true" data-bs-placement="right"
-				data-bs-title="Transport hotkeys"
-				data-bs-content="<kbd>Space</kbd> Play / Pause toggle<br><kbd>T</kbd> Record toggle<br><kbd>Enter</kbd> Rewind to start<br><kbd>Del</kbd> / <kbd>Backspace</kbd> Delete selected region<br><br>Drag region <em>label bar</em>: move region<br>Drag <em>wave area</em>: paint range selection<br>Click <em>ruler</em>: seek (no auto-play)"
-				style="border:1px solid currentColor; border-radius:50%; width:22px; height:22px; padding:0; line-height:1; font-size:13px; font-weight:bold; flex-shrink:0;">?</button>
-		<nav id="transportBar" class="bg-secondary rounded px-3 py-2 d-flex align-items-center flex-wrap flex-grow-1" style="gap: 6px;">
-			<strong class="text-warning me-2">Transport:</strong>
-			<button id="transportLoadBtn" class="btn btn-sm btn-info">Load File</button>
-			<input type="file" id="transportFileInput" accept="audio/*" style="display:none" />
-			<button id="transportPlayBtn" class="btn btn-sm btn-success" disabled>Play</button>
-			<button id="transportRecordBtn" class="btn btn-sm btn-danger">● Rec</button>
-			<button id="transportStopBtn" class="btn btn-sm btn-outline-light" disabled>■ Stop</button>
-			<button id="transportLoopBtn" class="btn btn-sm btn-outline-info" title="Toggle loop within range selection">🔁 Loop</button>
-			<button id="transportDeleteBtn" class="btn btn-sm btn-outline-warning" disabled title="Delete selected region (Del / Backspace)">Delete</button>
-			<span id="transportTime" class="text-light small ms-2 font-monospace" style="font-variant-numeric: tabular-nums;">0:00.00 / 0:00.00</span>
-			<span id="transportStatus" class="text-light small ms-2 opacity-75">Idle</span>
-		</nav>
-		</div>
+			<div class="mb-3" style="position:relative;">
+				<canvas id="transportWaveform" style="display:block; width:100%; height:120px; background:#1a1a1a; border-radius:6px;"></canvas>
+				<div id="transportZoomCtl" style="position:absolute; top:3px; right:6px; display:flex; gap:2px;">
+					<button id="transportZoomOutBtn" type="button" class="btn btn-sm btn-dark" style="padding:0 6px; line-height:1.2; font-size:12px;" title="Zoom out">−</button>
+					<span id="transportZoomVal" class="text-light small" style="align-self:center; padding:0 4px; font-variant-numeric: tabular-nums; min-width:2.5em; text-align:center;">1×</span>
+					<button id="transportZoomInBtn" type="button" class="btn btn-sm btn-dark" style="padding:0 6px; line-height:1.2; font-size:12px;" title="Zoom in">+</button>
+				</div>
+			</div>
 
-		<div class="mb-3" style="position:relative;">
-			<canvas id="transportWaveform" style="display:block; width:100%; height:120px; background:#1a1a1a; border-radius:6px;"></canvas>
-			<div id="transportZoomCtl" style="position:absolute; top:3px; right:6px; display:flex; gap:2px;">
-				<button id="transportZoomOutBtn" type="button" class="btn btn-sm btn-dark" style="padding:0 6px; line-height:1.2; font-size:12px;" title="Zoom out">−</button>
-				<span id="transportZoomVal" class="text-light small" style="align-self:center; padding:0 4px; font-variant-numeric: tabular-nums; min-width:2.5em; text-align:center;">1×</span>
-				<button id="transportZoomInBtn" type="button" class="btn btn-sm btn-dark" style="padding:0 6px; line-height:1.2; font-size:12px;" title="Zoom in">+</button>
+			<div id="lastNoteWrap" class="text-center mb-2" style="display:none;">
+				<span class="badge bg-dark border border-info text-info" style="font-size:14px;" title="Approximate: based on the strongest frequency bin. Overtones, noise, and timbre may shift the detected pitch.">
+					Last note: <strong id="lastNoteText">—</strong>
+					<span class="text-muted small">(approx.)</span>
+				</span>
+			</div>
+
+			<div id="micHint" class="alert alert-info mt-2 text-center">
+				This app needs microphone access to visualize your voice. Click <strong>Start</strong> to begin.
+			</div>
+
+			<div id="restartHint" class="alert alert-warning mt-2 text-center" style="display:none">
+				Microphone settings changed. Click <strong>Stop</strong> then <strong>Start</strong> to apply.
+			</div>
+
+			<div id="audioFileBar" class="d-flex d-none align-items-center mb-3 bg-dark p-2 rounded" style="border-bottom: 2px solid #0dcaf0;">
+				<span class="badge bg-info me-3 text-dark">FILE MODE</span>
+				<span id="audioPlayerName" class="text-truncate text-light me-3" style="max-width:200px; font-size:14px;"></span>
+				<span id="customAudioTime" class="text-muted small me-2" style="font-variant-numeric: tabular-nums; min-width:80px; text-align:right;">0:00 / 0:00</span>
+				<input type="range" id="customAudioScrubber" class="form-range mx-3" value="0" min="0" max="100" step="0.1" style="flex-grow:1;">
+				<button id="closeAudioBtn" class="btn btn-sm btn-danger px-3">Drop File & Return to Mic</button>
+				<audio id="audioPlayer" style="display:none;"></audio>
+			</div>
+
+			<div class="row w-100 g-0">
+				<h3>What is this?</h3>
+				<p>This is a stupid simple spectrogram utility created by kd8lvt for <a href="https://www.youtube.com/@LesageSinging">LesageSinging on YouTube</a>.</p>
+				<br />
+				<h3>How do I use it?</h3>
+				<p>Simply click the "Start" button above, and allow usage of your microphone.</p>
+				<br />
+				<h3>Does my microphone data get sent anywhere?</h3>
+				<p>All your data stays entirely on your device. Feel free to snoop around the client code using your browser's dev tools :)</p>
+				<br />
+				<h3>What spectrogram library does this use?</h3>
+				<p>The lovely <a href="https://www.arc.id.au/Spectrogram.html">Spectrogram-2v02.js</a> by Dr. A.R.Collins</p>
 			</div>
 		</div>
-
-		<div id="lastNoteWrap" class="text-center mb-2" style="display:none;">
-			<span class="badge bg-dark border border-info text-info" style="font-size:14px;" title="Approximate: based on the strongest frequency bin. Overtones, noise, and timbre may shift the detected pitch.">
-				Last note: <strong id="lastNoteText">—</strong>
-				<span class="text-muted small">(approx.)</span>
-			</span>
-		</div>
-
-		<div id="micHint" class="alert alert-info mt-2 text-center">
-			This app needs microphone access to visualize your voice. Click <strong>Start</strong> to begin.
-		</div>
-
-		<div id="restartHint" class="alert alert-warning mt-2 text-center" style="display:none">
-			Microphone settings changed. Click <strong>Stop</strong> then <strong>Start</strong> to apply.
-		</div>
-
-		<div id="audioFileBar" class="d-flex d-none align-items-center mb-3 bg-dark p-2 rounded" style="border-bottom: 2px solid #0dcaf0;">
-			<span class="badge bg-info me-3 text-dark">FILE MODE</span>
-			<span id="audioPlayerName" class="text-truncate text-light me-3" style="max-width:200px; font-size:14px;"></span>
-			<span id="customAudioTime" class="text-muted small me-2" style="font-variant-numeric: tabular-nums; min-width:80px; text-align:right;">0:00 / 0:00</span>
-			<input type="range" id="customAudioScrubber" class="form-range mx-3" value="0" min="0" max="100" step="0.1" style="flex-grow:1;">
-			<button id="closeAudioBtn" class="btn btn-sm btn-danger px-3">Drop File & Return to Mic</button>
-			<audio id="audioPlayer" style="display:none;"></audio>
-		</div>
-
-		<div class="row w-100 g-0">
-
-		<h3>What is this?</h3>
-		<p>This is a stupid simple spectrogram utility created by kd8lvt for <a href="https://www.youtube.com/@LesageSinging">LesageSinging on YouTube</a>.</p>
-		<br />
-		<h3>How do I use it?</h3>
-		<p>Simply click the "Start" button above, and allow usage of your microphone.</p>
-		<br />
-		<h3>Does my microphone data get sent anywhere?</h3>
-		<p>All your data stays entirely on your device. Feel free to snoop around the client code using your browser's dev tools :)</p>
-		<br />
-		<h3>What spectrogram library does this use?</h3>
-		<p>The lovely <a href="https://www.arc.id.au/Spectrogram.html">Spectrogram-2v02.js</a> by Dr. A.R.Collins</p>
-	</div>
 		<footer class="container text-center">
 			<p>Feel free to contribute on <a href="https://github.com/kd8lvt/lespectrogram">Github</a>!</p>
 		</footer>

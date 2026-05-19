@@ -38,18 +38,27 @@ enum DragMode : int32_t
     DRAG_RULER = 1,
     DRAG_MOVE  = 2,
     DRAG_RANGE = 3,
+    DRAG_PAN   = 4,
+};
+
+// Modifier bit-flags forwarded from JS (matches DOM event order so future
+// flags can mirror it). Only bit 0 (Shift) is read today.
+enum Modifier : int32_t
+{
+    MOD_SHIFT = 1 << 0,
 };
 
 struct DragState
 {
-    int32_t mode              = DRAG_NONE;
-    int32_t initialMouseX     = 0;
-    int32_t initialFrame      = 0;
-    int32_t initialTrackStart = 0;
-    int32_t regionId          = -1;
-    int32_t hitId             = -1;
-    int32_t anchorFrame       = 0;
-    int32_t hasMoved          = 0;
+    int32_t mode                = DRAG_NONE;
+    int32_t initialMouseX       = 0;
+    int32_t initialFrame        = 0;
+    int32_t initialTrackStart   = 0;
+    int32_t regionId            = -1;
+    int32_t hitId               = -1;
+    int32_t anchorFrame         = 0;
+    int32_t hasMoved            = 0;
+    int32_t initialScrollOffset = 0;
 };
 
 struct GestureCtx
@@ -105,7 +114,8 @@ inline int32_t hoverCursor(GestureCtx& ctx, const int32_t xCss, const int32_t yC
     return CURSOR_CROSSHAIR;
 }
 
-inline int32_t handleMouseDown(GestureCtx& ctx, const int32_t xCss, const int32_t yCss, const int32_t cssW)
+inline int32_t handleMouseDown(GestureCtx& ctx, const int32_t xCss, const int32_t yCss,
+                               const int32_t cssW, const int32_t modifiers)
 {
     if (ctx.state.state.load(std::memory_order_acquire) == Transport::STATE_RECORDING)
     {
@@ -138,6 +148,17 @@ inline int32_t handleMouseDown(GestureCtx& ctx, const int32_t xCss, const int32_
         ctx.drag.initialTrackStart = r.trackStartFrame.load(std::memory_order_acquire);
         ctx.drag.regionId          = hit;
         ctx.drag.hasMoved          = 0;
+        return CURSOR_GRABBING;
+    }
+
+    // Shift+drag on empty wave area pans the timeline view; plain drag is
+    // range selection (existing behavior).
+    if ((modifiers & MOD_SHIFT) && hit < 0)
+    {
+        ctx.drag.mode                = DRAG_PAN;
+        ctx.drag.initialMouseX       = xCss;
+        ctx.drag.initialScrollOffset = ctx.state.scrollOffsetFrames.load(std::memory_order_acquire);
+        ctx.drag.hasMoved            = 0;
         return CURSOR_GRABBING;
     }
 
@@ -198,6 +219,23 @@ inline int32_t handleMouseMove(GestureCtx& ctx, const int32_t xCss, const int32_
                 }
             }
             return CURSOR_CROSSHAIR;
+
+        case DRAG_PAN:
+            if (ctx.drag.hasMoved)
+            {
+                const int32_t tl       = timelineLength(ctx.state, ctx.regions);
+                const int32_t vis      = visibleFrames(ctx.state, tl);
+                const int32_t signedDx = xCss - ctx.drag.initialMouseX;
+                // Grab-and-move: dragging right pulls earlier frames into view,
+                // so the left edge (scrollOffset) decreases by dxFrames.
+                const int32_t dxFrames = static_cast<int32_t>(
+                    static_cast<double>(signedDx) / cssW * vis);
+                const int32_t maxOff   = std::max(0, tl - vis);
+                const int32_t newOff   = std::clamp(
+                    ctx.drag.initialScrollOffset - dxFrames, 0, maxOff);
+                ctx.state.scrollOffsetFrames.store(newOff, std::memory_order_release);
+            }
+            return CURSOR_GRABBING;
     }
     return CURSOR_DEFAULT;
 }

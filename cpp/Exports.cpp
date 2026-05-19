@@ -223,9 +223,10 @@ EXPORT void transport_render_drawlist(const int32_t Wphys, const int32_t Hphys, 
 // Return values are JS-side useful: cursor enum (mouse_down / mouse_move /
 // hover_cursor) or play-from frame (mouse_up; always -1 today — clicks never
 // auto-play, so the JS bridge is a no-op forwarder).
-EXPORT int32_t transport_mouse_down(const int32_t xCss, const int32_t yCss, const int32_t cssW)
+EXPORT int32_t transport_mouse_down(const int32_t xCss, const int32_t yCss, const int32_t cssW,
+                                    const int32_t modifiers)
 {
-    return gestures::handleMouseDown(g_gestureCtx, xCss, yCss, cssW);
+    return gestures::handleMouseDown(g_gestureCtx, xCss, yCss, cssW, modifiers);
 }
 EXPORT int32_t transport_mouse_move(const int32_t xCss, const int32_t yCss, const int32_t cssW)
 {

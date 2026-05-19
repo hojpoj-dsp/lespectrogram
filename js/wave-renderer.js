@@ -65,7 +65,9 @@ const WaveRenderer = (() => {
     function onCanvasDown(e) {
         if (e.button !== 0 || !Transport.isReady()) return;
         const { x, y } = cssCoords(e);
-        const cur = Transport.exports.transport_mouse_down(x, y, cssW);
+        // Modifier bit-flags must match Gestures.hpp Modifier enum (bit 0 = Shift).
+        const mods = e.shiftKey ? 1 : 0;
+        const cur = Transport.exports.transport_mouse_down(x, y, cssW, mods);
         canvas.style.cursor = CURSORS[cur] || '';
         if (Transport.exports.transport_drag_mode() !== 0) dragging = true;
     }

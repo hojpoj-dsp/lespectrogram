@@ -41,7 +41,7 @@ const Transport = (() => {
     async function init(ctx, channels = 2) {
         if (workletReady) return workletNode;
         if (!isCrossOriginIsolated()) {
-            throw new Error('Transport requires cross-origin isolation. Run via dev-server.js (COOP/COEP).');
+            throw new Error('Transport requires cross-origin isolation (COOP/COEP). Reload the page; the service worker should enable it on the next load.');
         }
         audioCtx = ctx;
         outputChannels = channels;

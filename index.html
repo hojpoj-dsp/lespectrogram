@@ -1,6 +1,10 @@
 <html lang="en">
 	<head>
 		<meta charset="UTF-8">
+		<!-- Cross-origin isolation shim (must load before any other script).
+		     Registers a service worker that re-adds COOP/COEP headers so
+		     SharedArrayBuffer is available on plain static hosts (GH Pages, etc). -->
+		<script src="coi-serviceworker.js"></script>
 		<!-- Stylesheet -->
 		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.8/dist/darkly/bootstrap.min.css" crossorigin="anonymous">
 		<link rel="stylesheet" href="index.css">

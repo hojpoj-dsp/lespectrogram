@@ -8,16 +8,17 @@
 #include "Transport.hpp"
 #include "WaveInterpolator.hpp"
 #include "DrawList.hpp"
+#include "PixelBuffer.hpp"
+#include "Color.hpp"
 
 namespace render_detail
 {
 
+// Thin shim — the encoding lives in Color.hpp. Kept here only so the many
+// existing render_detail::packRgba(...) call sites don't all need editing.
 inline uint32_t packRgba(int r, int g, int b, int a)
 {
-    return (static_cast<uint32_t>(r) << 24)
-         | (static_cast<uint32_t>(g) << 16)
-         | (static_cast<uint32_t>(b) << 8)
-         |  static_cast<uint32_t>(a);
+    return color::pack(r, g, b, a);
 }
 
 // h in [0, 360), s/l/a in [0, 1].
@@ -147,7 +148,8 @@ public:
     static constexpr int32_t LABEL_H_CSS              = 16;
     static constexpr int32_t TIMELINE_DEFAULT_SECONDS = 300;
 
-    void render(DrawList& list,
+    void render(DrawList&    list,
+                PixelBuffer& pixels,
                 TransportStateView& state,
                 TrackRegions&       regions,
                 const AudioBuffer&  buffer,
@@ -157,13 +159,14 @@ public:
                 const float   dpr)
     {
         list.reset();
+        pixels.begin(Wphys, Hphys);
 
         const int32_t rulerHpx = static_cast<int32_t>(RULER_H_CSS * dpr + 0.5f);
         const int32_t labelHpx = static_cast<int32_t>(LABEL_H_CSS * dpr + 0.5f);
         const int32_t fontPx   = static_cast<int32_t>(11.0f       * dpr + 0.5f);
 
         // Background
-        list.fillRect(0, 0, Wphys, Hphys, render_detail::packRgba(0x1A, 0x1A, 0x1A, 0xFF));
+        pixels.clear(render_detail::packRgba(0x1A, 0x1A, 0x1A, 0xFF));
 
         const int32_t trackLen   = regions.trackLength();
         const int32_t sampleRate = state.sampleRate;
@@ -205,7 +208,7 @@ public:
                 (static_cast<double>(frame - scrollOffset) / visibleFrames) * Wphys + 0.5);
         };
 
-        renderRuler(list, Wphys, rulerHpx, scrollOffset, visibleFrames, sampleRate, dpr, fontPx);
+        renderRuler(list, pixels, Wphys, rulerHpx, scrollOffset, visibleFrames, sampleRate, dpr, fontPx);
 
         const int32_t selectedId = state.selectedRegionId.load(std::memory_order_acquire);
         const int32_t trackTop   = rulerHpx;
@@ -236,12 +239,12 @@ public:
                 const bool  isSelected = id == selectedId;
 
                 // Wave area background
-                list.fillRect(xStart, waveTop, regionW, waveH,
+                pixels.fillRect(xStart, waveTop, regionW, waveH,
                     isSelected ? render_detail::hsla(hue, 0.70f, 0.38f, 0.70f)
                                : render_detail::hsla(hue, 0.55f, 0.28f, 0.55f));
 
                 // Label bar
-                list.fillRect(xStart, trackTop, regionW, labelHpx,
+                pixels.fillRect(xStart, trackTop, regionW, labelHpx,
                     isSelected ? render_detail::hsla(hue, 0.75f, 0.30f, 1.00f)
                                : render_detail::hsla(hue, 0.55f, 0.22f, 0.95f));
 
@@ -249,7 +252,7 @@ public:
                 const int32_t bw = isSelected
                     ? std::max(2, static_cast<int32_t>(2 * dpr + 0.5f))
                     : 1;
-                list.strokeRect(xStart, trackTop, regionW, trackH, bw,
+                pixels.strokeRect(xStart, trackTop, regionW, trackH, bw,
                     isSelected ? render_detail::hsla(hue, 0.90f, 0.78f, 1.0f)
                                : render_detail::hsla(hue, 0.60f, 0.50f, 0.9f));
 
@@ -281,13 +284,13 @@ public:
                     const int32_t yMx = static_cast<int32_t>(midY - mx * ampY);
                     const int32_t yMn = static_cast<int32_t>(midY - mn * ampY);
                     const int32_t hh  = std::max(1, yMn - yMx);
-                    list.fillRect(xStart + i, yMx, 1, hh, waveColor);
+                    pixels.fillRect(xStart + i, yMx, 1, hh, waveColor);
                 }
             }
 
             // Wave-area centerline (~10% white)
-            list.fillRect(0, midY, Wphys, 1,
-                          render_detail::packRgba(0xFF, 0xFF, 0xFF, 0x1A));
+            pixels.fillRect(0, midY, Wphys, 1,
+                            render_detail::packRgba(0xFF, 0xFF, 0xFF, 0x1A));
 
             // Range overlay
             const int32_t rangeStart = state.rangeStart.load(std::memory_order_acquire);
@@ -300,17 +303,17 @@ public:
                 {
                     const int32_t x0 = std::max(0,     xR0);
                     const int32_t x1 = std::min(Wphys, xR1);
-                    list.fillRect(x0, trackTop, x1 - x0, trackH,
-                                  render_detail::packRgba(0xFF, 0xDC, 0x00, 0x2E));
+                    pixels.fillRect(x0, trackTop, x1 - x0, trackH,
+                                    render_detail::packRgba(0xFF, 0xDC, 0x00, 0x2E));
                     if (xR0 >= 0 && xR0 < Wphys)
                     {
-                        list.fillRect(xR0, trackTop, 1, trackH,
-                                      render_detail::packRgba(0xFF, 0xDC, 0x00, 0xD9));
+                        pixels.fillRect(xR0, trackTop, 1, trackH,
+                                        render_detail::packRgba(0xFF, 0xDC, 0x00, 0xD9));
                     }
                     if (xR1 > 0 && xR1 <= Wphys)
                     {
-                        list.fillRect(xR1 - 1, trackTop, 1, trackH,
-                                      render_detail::packRgba(0xFF, 0xDC, 0x00, 0xD9));
+                        pixels.fillRect(xR1 - 1, trackTop, 1, trackH,
+                                        render_detail::packRgba(0xFF, 0xDC, 0x00, 0xD9));
                     }
                 }
             }
@@ -322,13 +325,14 @@ public:
         if (phX >= 0 && phX < Wphys)
         {
             const int32_t lw = std::max(2, static_cast<int32_t>(2 * dpr + 0.5f));
-            list.fillRect(phX, 0, lw, Hphys,
-                          render_detail::packRgba(0xFF, 0x50, 0x50, 0xFF));
+            pixels.fillRect(phX, 0, lw, Hphys,
+                            render_detail::packRgba(0xFF, 0x50, 0x50, 0xFF));
         }
     }
 
 private:
     void renderRuler(DrawList&     list,
+                     PixelBuffer&  pixels,
                      const int32_t Wphys,
                      const int32_t rulerHpx,
                      const int32_t offset,
@@ -337,10 +341,10 @@ private:
                      const float   dpr,
                      const int32_t fontPx)
     {
-        list.fillRect(0, 0, Wphys, rulerHpx,
-                      render_detail::packRgba(0x22, 0x22, 0x22, 0xFF));
-        list.fillRect(0, rulerHpx - 1, Wphys, 1,
-                      render_detail::packRgba(0xFF, 0xFF, 0xFF, 0x14));
+        pixels.fillRect(0, 0, Wphys, rulerHpx,
+                        render_detail::packRgba(0x22, 0x22, 0x22, 0xFF));
+        pixels.fillRect(0, rulerHpx - 1, Wphys, 1,
+                        render_detail::packRgba(0xFF, 0xFF, 0xFF, 0x14));
 
         if (sampleRate <= 0 || visible <= 0) { return; }
 
@@ -363,7 +367,7 @@ private:
         for (; t <= endSec + 1e-5f; t += step)
         {
             const int32_t x = static_cast<int32_t>(((t - startSec) / visSec) * Wphys + 0.5f);
-            list.fillRect(x, rulerHpx - tickH, 1, tickH, tickColor);
+            pixels.fillRect(x, rulerHpx - tickH, 1, tickH, tickColor);
 
             const int32_t align = (x < edgePx)            ? 0   // left
                                 : (x > Wphys - edgePx)    ? 2   // right

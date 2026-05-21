@@ -18,8 +18,11 @@ const TransportApp = (() => {
     let waveInitialized    = false;
     let transportWired     = false;
     let transportGain      = null;
-    let transportMicSrc    = null;
-    let transportMicStream = null;
+    let transportMicSrc    = null;       // Owned mic source (only when no legacy mic exists)
+    let transportMicStream = null;       // Owned MediaStream
+    let usingLegacyMic     = false;      // True if we forked the App's existing micSourceNode
+    let legacyWasRunning   = false;      // Snapshot of host.getAppState() at wire time
+    let teardownGen        = 0;          // Bumped per teardown; pending fades compare before disconnecting
 
     let lastPolledState    = -1;
     let lastPolledSelected = -2;  // sentinel; -1 is a real value
@@ -66,21 +69,93 @@ const TransportApp = (() => {
 
     function wireTransportGraph() {
         if (transportWired) return;
-        host.disconnectMediaSources();
 
-        const audioCtx = host.getAudioCtx();
-        const analyser = host.getAnalyser();
-        const node     = Transport.getNode();
+        // Remember whether the legacy spectrogram was running so we can
+        // restore the mic→analyser edge when the transport returns to IDLE.
+        legacyWasRunning = (host.getAppState() === "running");
+
+        const audioCtx     = host.getAudioCtx();
+        const analyser     = host.getAnalyser();
+        const node         = Transport.getNode();
+        const legacyMicSrc = host.getMicSourceNode && host.getMicSourceNode();
+
+        // If the App already has a live mic source, fork it instead of
+        // tearing it down + re-acquiring. Drop the legacy mic→analyser edge
+        // here; the transport will feed the analyser while wired, and we
+        // restore the legacy edge on teardown.
+        if (legacyMicSrc) {
+            usingLegacyMic = true;
+            try { legacyMicSrc.disconnect(analyser); } catch (_) {}
+        } else {
+            usingLegacyMic = false;
+        }
+
         try { node.disconnect(); } catch (_) {}
         node.connect(analyser);
 
         if (!transportGain) {
             transportGain = audioCtx.createGain();
             transportGain.gain.value = 1;
+        } else {
+            transportGain.gain.setValueAtTime(1, audioCtx.currentTime);
         }
+        try { analyser.disconnect(); } catch (_) {}
         analyser.connect(transportGain);
         transportGain.connect(audioCtx.destination);
         transportWired = true;
+    }
+
+    // Tears down the transport-side audio edges and restores the legacy
+    // mic→analyser path (if there was one). Fades transportGain to 0 first
+    // to avoid an audible click on disconnect.
+    function teardownTransportGraph() {
+        if (!transportWired) return;
+        transportWired = false;  // Guard against re-entry while the fade is pending.
+        const myGen   = ++teardownGen;
+        const audioCtx = host.getAudioCtx();
+        const analyser = host.getAnalyser();
+        const node     = Transport.getNode();
+        if (!audioCtx) return;
+
+        const FADE_MS = 6;
+        if (transportGain) {
+            const t0 = audioCtx.currentTime;
+            try {
+                transportGain.gain.cancelScheduledValues(t0);
+                transportGain.gain.setValueAtTime(transportGain.gain.value, t0);
+                transportGain.gain.linearRampToValueAtTime(0, t0 + FADE_MS / 1000);
+            } catch (_) {}
+        }
+
+        // Schedule the actual disconnect just after the ramp completes so
+        // the graph is silent at the moment of edge removal. If a new
+        // wire/teardown cycle started in the meantime, the generation check
+        // bails out so we don't yank edges out of the freshly-wired graph.
+        setTimeout(() => {
+            if (myGen !== teardownGen) return;
+            try { node.disconnect(analyser); } catch (_) {}
+            if (transportGain) {
+                try { analyser.disconnect(transportGain); } catch (_) {}
+                try { transportGain.disconnect();        } catch (_) {}
+            }
+            if (usingLegacyMic) {
+                // Detach mic from transport node and restore mic→analyser.
+                const legacyMicSrc = host.getMicSourceNode && host.getMicSourceNode();
+                if (legacyMicSrc) {
+                    try { legacyMicSrc.disconnect(node); } catch (_) {}
+                }
+                if (legacyWasRunning && host.reconnectLegacyMicToAnalyser) {
+                    host.reconnectLegacyMicToAnalyser();
+                }
+            } else if (transportMicStream) {
+                // Transport-owned mic: free it.
+                try { transportMicStream.getTracks().forEach(t => t.stop()); } catch (_) {}
+                transportMicStream = null;
+                transportMicSrc    = null;
+            }
+            usingLegacyMic   = false;
+            legacyWasRunning = false;
+        }, FADE_MS + 2);
     }
 
     function updateMonitorGain() {
@@ -94,6 +169,14 @@ const TransportApp = (() => {
     }
 
     async function ensureMicConnected() {
+        // Prefer the App's existing micSourceNode if it's live; just fork
+        // an edge into the transport node. Avoids a second getUserMedia
+        // permission prompt and a parallel mic stream.
+        const legacyMicSrc = host.getMicSourceNode && host.getMicSourceNode();
+        if (legacyMicSrc) {
+            try { legacyMicSrc.connect(Transport.getNode()); } catch (_) {}
+            return;
+        }
         if (transportMicSrc) return;
         const stream = await navigator.mediaDevices.getUserMedia({
             audio: host.audioConstraints(),
@@ -152,6 +235,10 @@ const TransportApp = (() => {
             Transport.stop();
             Transport.setPos(rewindTo);
             updateMonitorGain();
+            // Tear down directly so the legacy mic→analyser edge is restored
+            // immediately rather than after the next poll tick. (The poll
+            // loop still catches C++-initiated IDLE transitions.)
+            teardownTransportGraph();
             if (typeof WaveRenderer !== "undefined") WaveRenderer.refresh();
             syncTransportButtons();
             setStatus("Stopped (at region start)");
@@ -182,6 +269,7 @@ const TransportApp = (() => {
         // Second press (or press while recording / already idle) rewinds.
         if (!wasPlaying) Transport.setPos(0);
         updateMonitorGain();
+        teardownTransportGraph();
         if (typeof WaveRenderer !== "undefined") WaveRenderer.refresh();
         syncTransportButtons();
         setStatus(wasPlaying ? "Stopped" : "Stopped (rewound)");
@@ -241,6 +329,14 @@ const TransportApp = (() => {
             const s   = Transport.getState();
             const sel = Transport.getSelectedRegion();
             if (s !== lastPolledState || sel !== lastPolledSelected) {
+                // Safety net for C++-initiated IDLE transitions (e.g. auto-stop
+                // at end of track). Button handlers tear down synchronously.
+                if (s === Transport.STATE_IDLE
+                    && lastPolledState !== Transport.STATE_IDLE
+                    && transportWired)
+                {
+                    teardownTransportGraph();
+                }
                 lastPolledState    = s;
                 lastPolledSelected = sel;
                 syncTransportButtons();

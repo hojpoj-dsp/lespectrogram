@@ -4,19 +4,20 @@
 #include <cstdint>
 #include <cstring>
 
-// Fixed-stride draw command list. C++ writes; JS reads via Int32Array view.
+// Fixed-stride drawlist. Text-only since rect rendering moved into
+// PixelBuffer (blitted as a single putImageData on the JS side). The
+// stride and slot layout are preserved so the JS-side Int32Array view
+// doesn't need its parser specialised on a different shape.
 //
-// Each command is 8 i32 (32 bytes). Field meaning is type-specific:
-//
-//   slot   common      fillRect    strokeRect       fillText
-//   [0]    type        1           2                3
-//   [1]    x           x           x                x
-//   [2]    y           y           y                y
-//   [3]    -           w           w                fontSizePx
-//   [4]    -           h           h                align (0=L 1=C 2=R)
-//   [5]    color       RGBA        RGBA             RGBA (0xRRGGBBAA packed)
-//   [6]    -           0           lineWidth        textOffset (into text[])
-//   [7]    -           0           0                textLength
+//   slot   field
+//   [0]    type (3 = CMD_FILL_TEXT — only emitted value)
+//   [1]    x
+//   [2]    y
+//   [3]    fontSizePx
+//   [4]    align (0 = L, 1 = C, 2 = R)
+//   [5]    color (0xRRGGBBAA packed)
+//   [6]    textOffset (into text[])
+//   [7]    textLength
 //
 // Coordinates are in physical canvas pixels (caller has scaled by dpr).
 struct DrawList
@@ -27,9 +28,7 @@ struct DrawList
 
     enum CmdType : int32_t
     {
-        CMD_FILL_RECT   = 1,
-        CMD_STROKE_RECT = 2,
-        CMD_FILL_TEXT   = 3,
+        CMD_FILL_TEXT = 3,
     };
 
     int32_t cmds[MAX_CMDS * CMD_STRIDE_I32];
@@ -48,33 +47,6 @@ struct DrawList
         int32_t* s = cmds + count * CMD_STRIDE_I32;
         ++count;
         return s;
-    }
-
-    void fillRect(int32_t x, int32_t y, int32_t w, int32_t h, uint32_t color)
-    {
-        int32_t* s = allocSlot();
-        if (!s)
-        {
-            return;
-        }
-        s[0] = CMD_FILL_RECT;
-        s[1] = x; s[2] = y; s[3] = w; s[4] = h;
-        s[5] = static_cast<int32_t>(color);
-        s[6] = 0; s[7] = 0;
-    }
-
-    void strokeRect(int32_t x, int32_t y, int32_t w, int32_t h,
-                    int32_t lineWidth, uint32_t color)
-    {
-        int32_t* s = allocSlot();
-        if (!s)
-        {
-            return;
-        }
-        s[0] = CMD_STROKE_RECT;
-        s[1] = x; s[2] = y; s[3] = w; s[4] = h;
-        s[5] = static_cast<int32_t>(color);
-        s[6] = lineWidth; s[7] = 0;
     }
 
     void fillText(int32_t x, int32_t y, int32_t fontSizePx, int32_t align,

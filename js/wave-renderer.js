@@ -1,8 +1,9 @@
-// All visualization math AND gesture state live in C++. 
+// All visualization math AND gesture state live in C++.
 // This file only:
 //   * Sizes the canvas + tracks devicePixelRatio.
-//   * Each rAF tick, has C++ fill the draw list and walks the commands
-//     into Canvas2D (fillRect / strokeRect / fillText).
+//   * Each rAF tick: has C++ rasterize rects into a shared RGBA buffer,
+//     blits it via a single putImageData, then walks the (text-only)
+//     drawlist and renders labels/timestamps via Canvas2D fillText.
 //   * Forwards mouse events into C++ and applies the cursor it returns.
 
 const WaveRenderer = (() => {
@@ -14,6 +15,10 @@ const WaveRenderer = (() => {
     let rafId = null;
     let cssW = 1, cssH = 1, dpr = 1;
     let cmdsI32 = null, textBytes = null, cmdStrideI32 = 8;
+    let pixelsU8 = null;       // Uint8ClampedArray over the WASM RGBA8888 buffer.
+    let pixelsMaxW = 0, pixelsMaxH = 0;
+    let copyBuf  = null;       // Non-shared fallback if ImageData rejects SAB views.
+    let useCopyPath = false;
     let dragging = false;
 
     const decoder = new TextDecoder();
@@ -38,9 +43,13 @@ const WaveRenderer = (() => {
         const textPtr = exp.transport_drawlist_text_ptr();
         const maxCmds = exp.transport_drawlist_max_cmds();
         const textCap = exp.transport_drawlist_text_capacity();
+        const pxPtr   = exp.transport_pixels_ptr();
+        pixelsMaxW = exp.transport_pixels_max_w();
+        pixelsMaxH = exp.transport_pixels_max_h();
         cmdStrideI32 = exp.transport_drawlist_cmd_stride_i32();
-        cmdsI32 = new Int32Array(buf, cmdsPtr, maxCmds * cmdStrideI32);
+        cmdsI32   = new Int32Array(buf, cmdsPtr, maxCmds * cmdStrideI32);
         textBytes = new Uint8Array(buf, textPtr, textCap);
+        pixelsU8  = new Uint8ClampedArray(buf, pxPtr, pixelsMaxW * pixelsMaxH * 4);
         return true;
     }
 
@@ -111,34 +120,50 @@ const WaveRenderer = (() => {
         return m + ':' + sec;
     }
 
-    function executeDrawList() {
+    // One putImageData blit per frame for all rect-based geometry. The pixel
+    // buffer lives in WASM shared memory; we wrap it as a Uint8ClampedArray
+    // view. Some browser versions reject SAB-backed views in the ImageData
+    // constructor — if so, fall back to a per-frame copy into a non-shared
+    // buffer.
+    function blitPixels(W, H) {
+        const len = W * H * 4;
+        let imageData;
+        if (!useCopyPath) {
+            try {
+                imageData = new ImageData(pixelsU8.subarray(0, len), W, H);
+            } catch (_) {
+                useCopyPath = true;
+            }
+        }
+        if (useCopyPath) {
+            if (!copyBuf || copyBuf.length < len) copyBuf = new Uint8ClampedArray(len);
+            copyBuf.set(pixelsU8.subarray(0, len));
+            imageData = new ImageData(copyBuf.subarray(0, len), W, H);
+        }
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+    // Walk the drawlist for text commands and overlay them via Canvas2D's
+    // fillText (keeps antialiased fonts without baking a bitmap atlas).
+    // C++ now only emits CMD_FILL_TEXT (type 3); the dispatch is a guarded
+    // fast path on that.
+    function drawTextOverlay() {
         const count = Transport.exports.transport_drawlist_count();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         for (let i = 0; i < count; i++) {
             const off = i * cmdStrideI32;
-            const type = cmdsI32[off];
+            if (cmdsI32[off] !== 3) continue;
             const x = cmdsI32[off + 1], y = cmdsI32[off + 2];
-            const w = cmdsI32[off + 3], h = cmdsI32[off + 4];
-            const c = cmdsI32[off + 5] >>> 0;
-            const css = `rgba(${(c >>> 24) & 0xFF},${(c >>> 16) & 0xFF},${(c >>> 8) & 0xFF},${(c & 0xFF) / 255})`;
-
-            if (type === 1) {
-                ctx.fillStyle = css; ctx.fillRect(x, y, w, h);
-            } else if (type === 2) {
-                const lw = cmdsI32[off + 6];
-                ctx.strokeStyle = css; ctx.lineWidth = lw;
-                ctx.strokeRect(x + lw / 2, y + lw / 2, w - lw, h - lw);
-            } else if (type === 3) {
-                const fontPx = w, align = h;
-                const tOff = cmdsI32[off + 6], tLen = cmdsI32[off + 7];
-                ctx.fillStyle = css;
-                ctx.font = fontPx + 'px sans-serif';
-                ctx.textAlign = align === 0 ? 'left' : align === 2 ? 'right' : 'center';
-                ctx.textBaseline = 'top';
-                const copy = new Uint8Array(tLen);
-                copy.set(textBytes.subarray(tOff, tOff + tLen));
-                ctx.fillText(decoder.decode(copy), x, y);
-            }
+            const fontPx = cmdsI32[off + 3], align = cmdsI32[off + 4];
+            const c    = cmdsI32[off + 5] >>> 0;
+            const tOff = cmdsI32[off + 6], tLen = cmdsI32[off + 7];
+            ctx.fillStyle = `rgba(${(c >>> 24) & 0xFF},${(c >>> 16) & 0xFF},${(c >>> 8) & 0xFF},${(c & 0xFF) / 255})`;
+            ctx.font = fontPx + 'px sans-serif';
+            ctx.textAlign = align === 0 ? 'left' : align === 2 ? 'right' : 'center';
+            ctx.textBaseline = 'top';
+            const copy = new Uint8Array(tLen);
+            copy.set(textBytes.subarray(tOff, tOff + tLen));
+            ctx.fillText(decoder.decode(copy), x, y);
         }
     }
 
@@ -148,8 +173,13 @@ const WaveRenderer = (() => {
             return;
         }
         const { W, H } = ensureCanvasSize();
-        Transport.exports.transport_render_drawlist(W, H, dpr);
-        executeDrawList();
+        // Clamp render dims to the WASM pixel buffer's static capacity. On
+        // very wide displays we under-render rather than overflow.
+        const renderW = Math.min(W, pixelsMaxW);
+        const renderH = Math.min(H, pixelsMaxH);
+        Transport.exports.transport_render_drawlist(renderW, renderH, dpr);
+        blitPixels(renderW, renderH);
+        drawTextOverlay();
         updateTimeDisplay();
         syncZoomLabel();
         rafId = requestAnimationFrame(tick);

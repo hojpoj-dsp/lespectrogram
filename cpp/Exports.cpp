@@ -12,6 +12,7 @@
 #include "Transport.hpp"
 #include "WaveInterpolator.hpp"
 #include "DrawList.hpp"
+#include "PixelBuffer.hpp"
 #include "WaveformRenderer.hpp"
 #include "Gestures.hpp"
 
@@ -25,6 +26,7 @@ namespace
     Transport            g_transport(g_buffer, g_regions, g_state);
     WaveInterpolator     g_waveInterp;
     DrawList             g_drawList;
+    PixelBuffer          g_pixels;
     WaveformRenderer     g_waveRenderer;
     gestures::DragState  g_drag;
     gestures::GestureCtx g_gestureCtx{ g_state, g_regions, g_drag };
@@ -202,9 +204,10 @@ EXPORT void transport_wave_interpolate_range(const int32_t startFrame,
 EXPORT const float* transport_wave_output_ptr() { return g_waveInterp.output();    }
 EXPORT int32_t      transport_wave_max_pixels() { return WaveInterpolator::MAX_PIXELS; }
 
-// Draw-list pattern: C++ emits a fixed-stride list of fillRect/strokeRect/
-// fillText commands for the waveform display; JS dispatches them onto the
-// canvas. All visualization math (positions, colors, ruler ticks, time
+// Text-only drawlist: region labels and ruler timestamps. Rects/strokes
+// moved to the RGBA PixelBuffer below — text stays here so Canvas2D's
+// antialiased fillText can do the rasterization without baking a glyph
+// atlas. All visualization math (positions, colors, ruler ticks, time
 // formatting, range overlay, playhead) lives in WaveformRenderer.
 EXPORT int32_t* transport_drawlist_cmds_ptr()       { return g_drawList.cmds;          }
 EXPORT char*    transport_drawlist_text_ptr()       { return g_drawList.text;          }
@@ -213,9 +216,16 @@ EXPORT int32_t  transport_drawlist_max_cmds()       { return DrawList::MAX_CMDS;
 EXPORT int32_t  transport_drawlist_text_capacity()  { return DrawList::TEXT_BYTES;     }
 EXPORT int32_t  transport_drawlist_cmd_stride_i32() { return DrawList::CMD_STRIDE_I32; }
 
+// Software-rasterized RGBA8888 frame for everything that isn't text. JS
+// wraps this as a Uint8ClampedArray and blits it via putImageData in one
+// call per frame.
+EXPORT uint8_t* transport_pixels_ptr()        { return g_pixels.data;          }
+EXPORT int32_t  transport_pixels_max_w()      { return PixelBuffer::MAX_W;     }
+EXPORT int32_t  transport_pixels_max_h()      { return PixelBuffer::MAX_H;     }
+
 EXPORT void transport_render_drawlist(const int32_t Wphys, const int32_t Hphys, const float dpr)
 {
-    g_waveRenderer.render(g_drawList, g_state, g_regions, g_buffer,
+    g_waveRenderer.render(g_drawList, g_pixels, g_state, g_regions, g_buffer,
                           g_waveInterp, Wphys, Hphys, dpr);
 }
 
@@ -223,6 +233,10 @@ EXPORT void transport_render_drawlist(const int32_t Wphys, const int32_t Hphys, 
 // Return values are JS-side useful: cursor enum (mouse_down / mouse_move /
 // hover_cursor) or play-from frame (mouse_up; always -1 today — clicks never
 // auto-play, so the JS bridge is a no-op forwarder).
+//
+// Only transport_mouse_down takes a `modifiers` bitmask. Drag mode is
+// committed at mousedown, so modifier changes during move/up are ignored
+// by design — that's why move/up have no modifiers parameter.
 EXPORT int32_t transport_mouse_down(const int32_t xCss, const int32_t yCss, const int32_t cssW,
                                     const int32_t modifiers)
 {
